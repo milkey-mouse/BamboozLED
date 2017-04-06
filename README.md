@@ -14,8 +14,8 @@
 Create a config file for `boblight` at `/etc/boblight.json`:
     
     {
-        "listen": ["127.0.0.1", 80],
-        "destination": ["127.0.0.1", "7890"],
+        "listen": ["127.0.0.1", 7891],
+        "destination": ["127.0.0.1", 7890],
         "opcCompat": true
     }
 

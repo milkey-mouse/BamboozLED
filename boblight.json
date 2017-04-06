@@ -1,0 +1,5 @@
+{
+    "listen": [null, 7891],
+    "destination": ["127.0.0.1", 7890],
+    "opcCompat": true
+}
