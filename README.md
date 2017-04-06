@@ -16,8 +16,7 @@ Create a config file for `boblight` at `/etc/boblight.json`:
     {
         "listen": ["127.0.0.1", 80],
         "destination": ["127.0.0.1", "7890"],
-        "opcCompat": true,
-        "pixelCount": 512
+        "opcCompat": true
     }
 
 `listen` specifies which address & port to listen on. By default it only allows connections from `localhost`, but by changing `127.0.0.1` to `null` or `0.0.0.0` you can allow connections from any IP on your local network.
