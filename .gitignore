@@ -1,0 +1,4 @@
+boblight
+*.o
+*.a
+*.out
