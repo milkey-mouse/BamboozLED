@@ -15,26 +15,26 @@ static void parse_address(const char *str, bob_address *addr)
     char *colon = strchr(str, ':');
     if (colon == NULL)
     {
-        fputs("address must be in host:port format", stderr);
+        fputs("address must be in host:port format\n", stderr);
         exit(1);
     }
     addr->host = malloc(colon - str);
     memcpy(addr->host, str, colon - str);
     if (!isdigit(colon[1]))
     {
-        fputs("port must be a number", stderr);
+        fputs("port must be a number\n", stderr);
         exit(1);
     }
     char *l;
-    unsigned long p = strtoul(colon + 1, &l, 10);
+    unsigned long p = strtoul(colon + 1, &l, 0);
     if (errno == ERANGE || p > 65535)
     {
-        fputs("port number cannot be above 65535", stderr);
+        fputs("port number cannot be above 65535\n", stderr);
         exit(1);
     }
     else if (l != strchr(str, '\0'))
     {
-        fputs("unexpected data after port number", stderr);
+        fputs("unexpected data after port number\n", stderr);
         exit(1);
     }
     else
@@ -69,26 +69,26 @@ static void parse_config_address(bob_address *addr, jsmntok_t *tok, char *jsonSt
         {
             if (!isdigit(jsonStr[tok[3].start]))
             {
-                fputs("port must be a number", stderr);
+                fputs("port must be a number\n", stderr);
                 exit(1);
             }
-            unsigned long p = strtoul(jsonStr + tok[3].start, NULL, 10);
+            unsigned long p = strtoul(jsonStr + tok[3].start, NULL, 0);
             if (errno == ERANGE || p > 65535)
             {
-                fputs("Port number cannot be above 65535", stderr);
+                fputs("Port number cannot be above 65535\n", stderr);
                 exit(1);
             }
             addr->port = (unsigned short)p;
         }
         else
         {
-            fputs("port must be an IP address", stderr);
+            fputs("port must be an IP address\n", stderr);
             exit(1);
         }
     }
     else
     {
-        fputs("address format must be [host, port]", stderr);
+        fputs("address format must be [host, port]\n", stderr);
         exit(1);
     }
 }
@@ -101,34 +101,61 @@ static void parse_config_color(rgbPixel *pix, jsmntok_t *tok, char *jsonStr)
         {
             if (tok[2 + i].type == JSMN_PRIMITIVE && isdigit(jsonStr[tok[3].start]))
             {
-                unsigned long p = strtoul(jsonStr + tok[3].start, NULL, 10);
+                unsigned long p = strtoul(jsonStr + tok[3].start, NULL, 0);
                 if (errno == ERANGE || p > 255)
                 {
-                    fputs("[r, g, b] must be between 0 and 255", stderr);
+                    fputs("[r, g, b] must be between 0 and 255\n", stderr);
                     exit(1);
                 }
                 ((uint8_t *)pix)[i] = (uint8_t)p;
             }
             else
             {
-                fputs("[r, g, b] must be numbers", stderr);
+                fputs("[r, g, b] must be numbers\n", stderr);
                 exit(1);
             }
         }
     }
     else
     {
-        fputs("background format must be [r, g, b]", stderr);
+        fputs("background format must be [r, g, b]\n", stderr);
         exit(1);
+    }
+}
+
+static void parse_color(char *s, rgbPixel *pix)
+{
+    char *end;
+    for (int i = 0; i < 3; i++)
+    {
+        unsigned long p = strtoul(s, &end, 0);
+        if (end == s)
+        {
+            fputs("r,g,b must be numbers\n", stderr);
+            exit(1);
+        }
+        else if (i != 2 && *end != ',')
+        {
+            fputs("r,g,b must be 3 numbers separated by commas\n", stderr);
+            exit(1);
+        }
+        else if (errno == ERANGE || p > 255)
+        {
+            fputs("r,g,b must be between 0 and 255\n", stderr);
+            exit(1);
+        }
+        else
+        {
+            ((uint8_t *)pix)[i] = p;
+            s = end+1;
+        }
     }
 }
 
 static bool jsoneq(const char *json, jsmntok_t *tok, const char *s)
 {
     return (tok->type == JSMN_STRING && (int)strlen(s) == tok->end - tok->start &&
-            strncmp(json + tok->start, s, tok->end - tok->start) == 0)
-               ? true
-               : false;
+            strncmp(json + tok->start, s, tok->end - tok->start) == 0);
 }
 
 static void parse_config(char *filename)
@@ -136,7 +163,7 @@ static void parse_config(char *filename)
     FILE *fp = fopen(filename, "r");
     if (fp == NULL)
     {
-        fputs("Could not open config file ", stderr);
+        fputs("Could not open config file \n", stderr);
         perror(filename);
         exit(1);
     }
@@ -156,19 +183,19 @@ static void parse_config(char *filename)
     switch (jsmn_parse(&parser, jsonStr, fsize, tokens, tokcnt))
     {
     case JSMN_ERROR_INVAL:
-        fputs("Config file is not valid JSON", stderr);
+        fputs("Config file is not valid JSON\n", stderr);
         exit(1);
     case JSMN_ERROR_PART:
-        fputs("Config file JSON is incomplete", stderr);
+        fputs("Config file JSON is incomplete\n", stderr);
         exit(1);
     case JSMN_ERROR_NOMEM:
-        fputs("Too many tokens in JSON file", stderr);
+        fputs("Too many tokens in JSON file\n", stderr);
         exit(1);
     }
 
     if (tokcnt < 1 || tokens[0].type != JSMN_OBJECT)
     {
-        fputs("Top-level JSON token is not an object", stderr);
+        fputs("Top-level JSON token is not an object\n", stderr);
         exit(1);
     }
 
@@ -203,13 +230,13 @@ static void parse_config(char *filename)
                 }
                 else
                 {
-                    fputs("opcCompat must be true or false", stderr);
+                    fputs("opcCompat must be true or false\n", stderr);
                     exit(1);
                 }
             }
             else
             {
-                fputs("opcCompat must be true or false", stderr);
+                fputs("opcCompat must be true or false\n", stderr);
                 exit(1);
             }
         }
@@ -217,12 +244,13 @@ static void parse_config(char *filename)
     free(jsonStr);
 }
 
-static void showHelp()
+static void showHelp(char* arg0)
 {
-    puts("usage: boblight [--listen=HOST:PORT] [--destination=HOST:PORT] [--noOPCcompat] [--config=PATH] [--help]");
-    puts("    -l/--listen        the bob_address to accept clients on (default 127.0.0.1:7891)");
+    printf("usage: %s [--listen=HOST:PORT] [--destination=HOST:PORT] [--noOPCcompat] [--background=R,G,B] [--config=PATH] [--help]", arg0);
+    puts("    -l/--listen        the address to accept clients on (default 127.0.0.1:7891)");
     puts("    -d/--destination   the OPC server to send composited frames to (default 127.0.0.1:7890)");
     puts("    -o/--noOPCcompat   break compatibility with existing OPC clients and interpret all pixels as RGBA");
+    puts("    -b/--background    set the background color behind all dynamic layers");
     puts("    -c/--config        read configuration from a JSON file, overriding any previous flags");
     puts("    -h/--help          shows this help text");
     exit(0);
@@ -233,18 +261,19 @@ void parse_args(int argc, char **argv)
 
     if (argc <= 1)
     {
-        showHelp();
+        showHelp(argv[0]);
     }
     else
     {
         static struct option longopts[] = {
-            {"listen", optional_argument, NULL, 'l'},
-            {"destination", optional_argument, NULL, 'd'},
+            {"listen", required_argument, NULL, 'l'},
+            {"destination", required_argument, NULL, 'd'},
             {"noOPCcompat", no_argument, NULL, 'o'},
-            {"config", optional_argument, NULL, 'c'},
+            {"background", required_argument, NULL, 'b'},
+            {"config", required_argument, NULL, 'c'},
             {"help", no_argument, NULL, 'h'}};
         int arg;
-        while ((arg = getopt_long(argc, argv, "l:d:o:c:h:", longopts, NULL)) != -1)
+        while ((arg = getopt_long(argc, argv, "l:d:o:b:c:h:", longopts, NULL)) != -1)
         {
             switch (arg)
             {
@@ -257,11 +286,14 @@ void parse_args(int argc, char **argv)
             case 'o':
                 config.opcCompat = false;
                 break;
+            case 'b':
+                parse_color(optarg, &(config.background));
+                break;
             case 'c':
                 parse_config(optarg);
                 break;
             case 'h':
-                showHelp();
+                showHelp(argv[0]);
             }
         }
     }
