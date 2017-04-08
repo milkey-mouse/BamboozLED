@@ -16,12 +16,15 @@ Create a config file for `boblight` at `/etc/boblight.json`:
     {
         "listen": ["127.0.0.1", 7891],
         "destination": ["127.0.0.1", 7890],
+        "background": [0, 0, 0],
         "opcCompat": true
     }
 
 `listen` specifies which address & port to listen on. By default it only allows connections from `localhost`, but by changing `127.0.0.1` to `null` or `0.0.0.0` you can allow connections from any IP on your local network.
 
 `destination` specifies the address & port of the "target" OPC server that `boblight` sends the composited pixels to. By default it is assumed that you are running the server on the same machine as `boblight` on port `7890`.
+
+`background` is the color "beneath" all the dyamic layers; that is, if no clients are connected or a pixel is transparent, this background color will show through. (If the lights controlled by `boblight` are supposed to actually provide light as well as looking cool, it may be better to set it to `[255, 255, 255]` (white) so it provides light when no clients are connected.)
 
 `opcCompat` specifies if `boblight` should attempt to preserve compatibility with existing OPC clients (see [OPC compatibility](#opc-compatibility)). If set to `false`, `boblight` will function the same as a normal OPC server, except expecting 4 bytes (RGBA) per LED instead of the standard 3 (RGB).
 
