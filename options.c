@@ -10,7 +10,7 @@
 #include "bamboozled.h"
 #include "jsmn.h"
 
-static void parse_address(const char *str, bob_address *addr)
+static void parse_address(const char *str, bamboozled_address *addr)
 {
     char *colon = strchr(str, ':');
     if (colon == NULL)
@@ -43,7 +43,7 @@ static void parse_address(const char *str, bob_address *addr)
     }
 }
 
-static void parse_config_address(bob_address *addr, jsmntok_t *tok, char *jsonStr, bool allowNullIP)
+static void parse_config_address(bamboozled_address *addr, jsmntok_t *tok, char *jsonStr, bool allowNullIP)
 {
     if (tok[1].type == JSMN_ARRAY)
     {
@@ -216,30 +216,6 @@ static void parse_config(char *filename)
             parse_config_color(&(config.background), &tokens[i], jsonStr);
             i += 4;
         }
-        else if (jsoneq(jsonStr, &tokens[i], "opcCompat"))
-        {
-            if (tokens[i + 1].type == JSMN_PRIMITIVE)
-            {
-                if (strncmp(jsonStr + tokens[i + 1].start, "true", 4) == 0)
-                {
-                    config.opcCompat = true;
-                }
-                else if (strncmp(jsonStr + tokens[i + 1].start, "false", 5) == 0)
-                {
-                    config.opcCompat = false;
-                }
-                else
-                {
-                    fputs("opcCompat must be true or false\n", stderr);
-                    exit(1);
-                }
-            }
-            else
-            {
-                fputs("opcCompat must be true or false\n", stderr);
-                exit(1);
-            }
-        }
     }
     free(jsonStr);
 }
@@ -268,12 +244,11 @@ void parse_args(int argc, char **argv)
         static struct option longopts[] = {
             {"listen", required_argument, NULL, 'l'},
             {"destination", required_argument, NULL, 'd'},
-            {"noOPCcompat", no_argument, NULL, 'o'},
             {"background", required_argument, NULL, 'b'},
             {"config", required_argument, NULL, 'c'},
             {"help", no_argument, NULL, 'h'}};
         int arg;
-        while ((arg = getopt_long(argc, argv, "l:d:o:b:c:h:", longopts, NULL)) != -1)
+        while ((arg = getopt_long(argc, argv, "l:d:b:c:h:", longopts, NULL)) != -1)
         {
             switch (arg)
             {
@@ -282,9 +257,6 @@ void parse_args(int argc, char **argv)
                 break;
             case 'd':
                 parse_address(optarg, &(config.destination));
-                break;
-            case 'o':
-                config.opcCompat = false;
                 break;
             case 'b':
                 parse_color(optarg, &(config.background));

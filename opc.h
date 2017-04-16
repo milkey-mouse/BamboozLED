@@ -29,6 +29,7 @@ typedef struct
 
 /* OPC command codes */
 #define OPC_SET_PIXELS 0
+#define OPC_SET_ARGB 2
 #define OPC_SYSTEM_EXCLUSIVE 255
 
 // OPC client functions ----------------------------------------------------

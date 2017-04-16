@@ -14,21 +14,20 @@
 // Maximum possible number of pixels per message packet
 #define MAX_PIXELS_PER_LAYER ((1 << 16) / sizeof(rgbaPixel))
 
-typedef struct bob_address
+typedef struct bamboozled_address
 {
     char *host;
     uint16_t port;
-} bob_address;
+} bamboozled_address;
 
-typedef struct bob_config
+typedef struct bamboozled_config
 {
-    bob_address listen;
-    bob_address destination;
+    bamboozled_address listen;
+    bamboozled_address destination;
     rgbPixel background;
-    bool opcCompat;
-} bob_config;
+} bamboozled_config;
 
-bob_config config;
+bamboozled_config config;
 void parse_args(int argc, char **argv);
 
 typedef struct layer {

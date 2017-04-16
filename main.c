@@ -4,11 +4,10 @@
 #include "bamboozled.h"
 #include "opc.h"
 
-bob_config config = {
+bamboozled_config config = {
     {"127.0.0.1", 7891}, // listen
     {"127.0.0.1", 7890}, // destination
-    {0, 0, 0},           // background
-    true                 // opcCompat
+    {0, 0, 0}            // background
 };
 
 int main(int argc, char **argv)

@@ -108,7 +108,6 @@ void layer_composite()
             {
                 for (int p = 0; p < layers[i].channelLengths[c]; p++)
                 {
-                    printf("%hhu", layers[i].channelLengths[c]);
                     // TODO: add option for disabling fast blending math
                     // As of now it can only go up to 254
                     composited[c][p].r = layers[i].channels[c][p].r + (composited[c][p].r * (255 - layers[i].channels[c][p].a) >> 8);

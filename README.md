@@ -1,10 +1,10 @@
 # BamboozLED
 
-BamboozLED is a compositor for [Open Pixel Control](http://openpixelcontrol.org/) servers. It proxies the commands to another OPC server while adding one additional command that accepts RGBA pixels instead of plain RGB. This allows multiple clients to connect and push pixels at the same time with BamboozLED blending each buffer together and sending them to the target server.
+BamboozLED is a compositor for [Open Pixel Control](http://openpixelcontrol.org/) servers. It proxies the commands to another OPC server while adding one additional command that accepts RGBA pixels instead of plain RGB. This allows multiple clients to connect and push pixels at the same time with BamboozLED blending each buffer together and sending them to the destination server.
 
 # Installation
 
-    git clone --recursive https://github.com/milkey-mouse/bamboozled; cd bamboozled
+    git clone https://github.com/milkey-mouse/bamboozled; cd bamboozled
     make && sudo make install
 
 ## Running on startup
@@ -16,8 +16,7 @@ Create a config file for BamboozLED at `/etc/bamboozled.json`:
     {
         "listen": ["127.0.0.1", 7891],
         "destination": ["127.0.0.1", 7890],
-        "background": [0, 0, 0],
-        "opcCompat": true
+        "background": [0, 0, 0]
     }
 
 `listen` specifies which address & port to listen on. By default it only allows connections from `localhost`, but by changing `127.0.0.1` to `null` or `0.0.0.0` you can allow connections from any IP on your local network.
@@ -26,11 +25,9 @@ Create a config file for BamboozLED at `/etc/bamboozled.json`:
 
 `background` is the color "beneath" all the dyamic layers; that is, if no clients are connected or a pixel is transparent, this background color will show through. (If the lights are supposed to actually provide light as well as looking cool, it may be better to set it to `[255, 255, 255]` (white) so it provides light when no clients are connected.)
 
-`opcCompat` specifies if BamboozLED should attempt to preserve compatibility with existing OPC clients (see [OPC compatibility](#opc-compatibility)). If set to `false`, BamboozLED will function the same as a normal OPC server, except expecting 4 bytes (RGBA) per LED instead of the standard 3 (RGB).
-
 ### `systemd` unit file
 
-If your distribution uses [`systemd`](https://en.wikipedia.org/wiki/Systemd)  (most of them at this point), `make install` automatically added a `systemd` unit file that can be used to automatically start BamboozLED. Enable it to run on startup with the following command:
+If your system uses `systemd`, `make install` automatically added a `systemd` unit file that can be used to automatically start BamboozLED. Enable it to run on startup with the following command:
 
     sudo systemctl enable bamboozled.service
 
@@ -40,14 +37,12 @@ The first (bottommost) layer is Layer 0; this layer can be set to either all whi
 
 BamboozLED will blend pixels with alpha values less than 255 with the colors of the corresponding pixels on the layers below them.
 
-# OPC compatiblity
+# OPC API
 
-*This does not apply when `opcCompat` is set to `false`.*
+In order to preserve compatibility with existing programs that expect to set pixels with RGB triplets, BamboozLED uses OPC command 2 (command 1 [already has a proposal](https://github.com/zestyping/openpixelcontrol/issues/40)) for sending RGBA pixels. The command functions the exact same as the existing command 0 (send RGB pixels) but expects 4 bytes per pixel instead of 3:
 
-In order to preserve compatibility with existing programs that expect to set pixels with RGB triplets, BamboozLED uses OPC command 255 (SysEx) for sending RGBA pixels. BamboozLED looks for the system ID `0xB0B` and processes data with the following format:
+| channel | command | length (n) |          | data                                |
+|---------|---------|------------|----------|-------------------------------------|
+| 0-255   | 2       | high byte  | low byte | `n` bytes of message data (R,G,B,A) |
 
-| channel | command | length (n) |          | system identifier (2 bytes) | data                      |
-|---------|---------|------------|----------|-----------------------------|---------------------------|
-| 0-255   | 255     | high byte  | low byte | `0xB0B` (big endian)        | `n` bytes of message data |
-
-Any other OPC commands (and any SysEx commands with a system identifier other than `0xB0B`) will be passed through directly to the destination OPC server.
+Any other OPC commands will be passed through as-is to the destination OPC server.
