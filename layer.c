@@ -7,12 +7,12 @@
 
 //TODO: ARM NEON/x86 SSE for SIMD optimizations
 
-rgbaPixel composited[254][MAX_PIXELS_PER_LAYER];
+rgbaPixel composited[255][MAX_PIXELS_PER_LAYER];
 uint16_t maxPixelsSent = 0;
 
 layer layers[MAX_CLIENTS];
 
-static void layer_repr(uint8_t c)
+void layer_repr(uint8_t c)
 {
     printf("channel %hhu", c);
     for (int i = 0; i < MAX_PIXELS_PER_LAYER; i++)
@@ -30,15 +30,15 @@ static void layer_repr(uint8_t c)
 layer_handle layer_init()
 {
     layer_handle lh;
-    for (lh = 0; layers[lh].active; lh++)
+    for (lh = 0; lh < MAX_CLIENTS; lh++)
     {
-        if (lh == MAX_CLIENTS)
+        if (!layers[lh].active)
         {
-            return -1;
+            layers[lh].active = true;
+            return lh;
         }
     }
-    layers[lh].active = true;
-    return lh;
+    return -1;
 }
 
 void layer_destroy(layer_handle lh)
@@ -86,9 +86,9 @@ void layer_blit(layer_handle lh, uint8_t channel, rgbaPixel *src, int length)
             layers[lh].channels[channel][i].b = src[i].b * src[i].a >> 8;
             layers[lh].channels[channel][i].a = src[i].a;
         }
-        layer_composite();
-        layer_repr(channel);
     }
+    layer_composite();
+    layer_repr(channel);
 }
 
 void layer_composite()

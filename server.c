@@ -124,7 +124,7 @@ uint8_t opc_receive(opc_source source, uint32_t timeout_ms)
     select(nfds, &readfds, NULL, NULL, &timeout);
     if (info->listen_sock >= 0 && FD_ISSET(info->listen_sock, &readfds))
     {
-        /* Handle an inbound connection. */
+        // handle an inbound connection
         info->sock = accept(info->listen_sock, (struct sockaddr *)&(address), &address_len);
         inet_ntop(AF_INET, &(address.sin_addr), buffer, 64);
         fprintf(stderr, "Client connected from %s\n", buffer);
@@ -182,7 +182,7 @@ uint8_t opc_receive(opc_source source, uint32_t timeout_ms)
         }
         if (received <= 0)
         {
-            /* Connection was closed; wait for more connections. */
+            // connection was closed; wait for more connections
             fputs("Client closed connection\n", stderr);
             close(info->sock);
             info->sock = -1;
@@ -192,7 +192,7 @@ uint8_t opc_receive(opc_source source, uint32_t timeout_ms)
     }
     else
     {
-        /* timeout_ms milliseconds passed with no incoming data or connections. */
+        // timeout_ms milliseconds passed with no incoming data or connections
         return 0;
     }
     return 1;

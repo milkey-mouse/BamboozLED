@@ -42,3 +42,4 @@ void layer_destroy(layer_handle lh);
 
 void layer_blit(layer_handle lh, uint8_t channel, rgbaPixel *src, int length);
 void layer_composite();
+void layer_repr(uint8_t c);
