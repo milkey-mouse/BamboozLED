@@ -1,7 +1,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include "boblight.h"
+#include "bamboozled.h"
 
 #include <stdio.h>
 

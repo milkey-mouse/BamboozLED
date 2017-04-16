@@ -19,7 +19,7 @@ specific language governing permissions and limitations under the License. */
 #include <netdb.h>
 #include <stdio.h>
 
-#include "boblight.h"
+#include "bamboozled.h"
 #include "opc.h"
 
 /* Internal structure for a source.  sock >= 0 iff the connection is open. */

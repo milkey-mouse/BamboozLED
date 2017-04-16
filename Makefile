@@ -1,4 +1,4 @@
-TARGET = boblight
+TARGET = bamboozled
 LIBS = -lm
 CC = gcc
 CFLAGS = -g -O3 -Wall -std=c99

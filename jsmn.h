@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stddef.h>
-#include "boblight.h"
+#include "bamboozled.h"
 
 /**
  * JSON type identifier. Basic types are:

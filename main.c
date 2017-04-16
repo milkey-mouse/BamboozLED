@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "boblight.h"
+#include "bamboozled.h"
 #include "opc.h"
 
 bob_config config = {
@@ -14,7 +14,7 @@ bob_config config = {
 int main(int argc, char **argv)
 {
     parse_args(argc, argv);
-    printf("boblight v. %s\n", VERSION);
+    printf("bamboozled v. %s\n", VERSION);
     opc_source s = opc_new_source(config.listen.port);
     while (s >= 0)
     {

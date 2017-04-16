@@ -7,7 +7,7 @@
 #include <errno.h>
 #include <ctype.h>
 
-#include "boblight.h"
+#include "bamboozled.h"
 #include "jsmn.h"
 
 static void parse_address(const char *str, bob_address *addr)
