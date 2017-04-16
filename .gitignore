@@ -1,4 +1,5 @@
 bamboozled
+core
 *.o
 *.a
 *.out
