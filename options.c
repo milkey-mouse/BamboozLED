@@ -222,10 +222,9 @@ static void parse_config(char *filename)
 
 static void showHelp(char* arg0)
 {
-    printf("usage: %s [--listen=HOST:PORT] [--destination=HOST:PORT] [--noOPCcompat] [--background=R,G,B] [--config=PATH] [--help]", arg0);
+    printf("usage: %s [--listen=HOST:PORT] [--destination=HOST:PORT] [--background=R,G,B] [--config=PATH] [--help]", arg0);
     puts("    -l/--listen        the address to accept clients on (default 127.0.0.1:7891)");
     puts("    -d/--destination   the OPC server to send composited frames to (default 127.0.0.1:7890)");
-    puts("    -o/--noOPCcompat   break compatibility with existing OPC clients and interpret all pixels as RGBA");
     puts("    -b/--background    set the background color behind all dynamic layers");
     puts("    -c/--config        read configuration from a JSON file, overriding any previous flags");
     puts("    -h/--help          shows this help text");
