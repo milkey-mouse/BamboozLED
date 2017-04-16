@@ -172,13 +172,13 @@ uint8_t opc_receive(opc_source source, uint32_t timeout_ms)
         case OPC_SET_PIXELS:
           if (!config.opcCompat)
           {
-            layer_blit(info->layer, (rgbaPixel *)&(info->payload), info->payload_length);
+            layer_blit(info->layer, info->header[0], (rgbaPixel *)&(info->payload), info->payload_length / 4);
             break;
           }
         case OPC_SYSTEM_EXCLUSIVE:
           if (config.opcCompat && ((info->payload[0] << 8) | info->payload[1]) == OPC_SYSTEM_IDENTIFIER)
           {
-            layer_blit(info->layer, (rgbaPixel *)&(info->payload[2]), info->payload_length - 2);
+            layer_blit(info->layer, info->header[0], (rgbaPixel *)&(info->payload[2]), (info->payload_length - 2) / 4);
             break;
           }
         default:

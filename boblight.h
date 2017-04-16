@@ -11,6 +11,7 @@
 
 #define JSMN_STRICT
 
+// Maximum possible number of pixels per message packet
 #define MAX_PIXELS_PER_LAYER ((1 << 16) / sizeof(rgbaPixel))
 
 typedef struct bob_address
@@ -30,12 +31,15 @@ typedef struct bob_config
 bob_config config;
 void parse_args(int argc, char **argv);
 
-typedef rgbaPixel *layer;
-rgbaPixel composited[MAX_PIXELS_PER_LAYER];
+typedef struct layer {
+    bool active;
+    uint16_t channelLengths[254];
+    rgbaPixel *channels[254];
+} layer;
 
-typedef uint16_t layer_handle;
+typedef int layer_handle;
 layer_handle layer_init();
-void layer_destroy(layer_handle l);
+void layer_destroy(layer_handle lh);
 
-void layer_blit(layer_handle layer, rgbaPixel *src, int length);
+void layer_blit(layer_handle lh, uint8_t channel, rgbaPixel *src, int length);
 void layer_composite();

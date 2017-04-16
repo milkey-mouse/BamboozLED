@@ -1,7 +1,7 @@
 TARGET = boblight
 LIBS = -lm
 CC = gcc
-CFLAGS = -g -Wall -std=c99
+CFLAGS = -g -O3 -Wall -std=c99
 
 .PHONY: default all clean
 
