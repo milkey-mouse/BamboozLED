@@ -1,5 +1,6 @@
 #pragma once
 
+#include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include "opc.h"
@@ -16,7 +17,7 @@
 
 typedef struct bamboozled_address
 {
-    char *host;
+    in_addr_t host;
     uint16_t port;
 } bamboozled_address;
 

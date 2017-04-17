@@ -50,7 +50,7 @@ int opc_listen(uint16_t port)
     address.sin_family = AF_INET;
     address.sin_port = htons(port);
 
-    memset(&address.sin_addr, 0, sizeof(address.sin_addr));
+    memcpy(&address.sin_addr, &config.listen.host, sizeof(address.sin_addr));
     memset(&address.sin_zero, 0, sizeof(address.sin_zero));
     if (bind(sockfd, (struct sockaddr *)&address, sizeof(address)) != 0)
     {
@@ -126,7 +126,7 @@ uint8_t opc_receive(opc_source source, uint32_t timeout_ms)
     {
         // handle an inbound connection
         info->sock = accept(info->listen_sock, (struct sockaddr *)&(address), &address_len);
-        inet_ntop(AF_INET, &(address.sin_addr), buffer, 64);
+        inet_ntop(AF_INET, &(address.sin_addr), buffer, sizeof(buffer));
         fprintf(stderr, "Client connected from %s\n", buffer);
         close(info->listen_sock);
         info->listen_sock = -1;

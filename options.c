@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -10,7 +11,7 @@
 #include "bamboozled.h"
 #include "jsmn.h"
 
-static void parse_address(const char *str, bamboozled_address *addr)
+static void parse_address(char *str, bamboozled_address *addr)
 {
     char *colon = strchr(str, ':');
     if (colon == NULL)
@@ -18,8 +19,12 @@ static void parse_address(const char *str, bamboozled_address *addr)
         fputs("address must be in host:port format\n", stderr);
         exit(1);
     }
-    addr->host = malloc(colon - str);
-    memcpy(addr->host, str, colon - str);
+    *colon = '\0';
+    if (inet_pton(AF_INET, str, &addr->host) == 0)
+    {
+        fputs("host must be a valid IP address\n", stderr);
+        exit(1);
+    }
     if (!isdigit(colon[1]))
     {
         fputs("port must be a number\n", stderr);
@@ -32,7 +37,7 @@ static void parse_address(const char *str, bamboozled_address *addr)
         fputs("port number cannot be above 65535\n", stderr);
         exit(1);
     }
-    else if (l != strchr(str, '\0'))
+    else if (l != strchr(colon + 1, '\0'))
     {
         fputs("unexpected data after port number\n", stderr);
         exit(1);
@@ -50,14 +55,17 @@ static void parse_config_address(bamboozled_address *addr, jsmntok_t *tok, char 
         switch (tok[2].type)
         {
         case JSMN_STRING:
-            addr->host = malloc(tok[2].end - tok[2].start + 1);
-            memcpy(addr->host, jsonStr + tok[2].start, tok[2].end - tok[2].start);
-            addr->host[tok[2].end - tok[2].start] = '\0';
+            jsonStr[tok[2].end] = '\0';
+            if (inet_pton(AF_INET, jsonStr + tok[2].start, &addr->host) == 0)
+            {
+                fputs("host must be a valid IP address\n", stderr);
+                exit(1);
+            }
             break;
         case JSMN_PRIMITIVE:
-            if (allowNullIP && strncmp(jsonStr + tok[2].start, "null", 4) == 0)
+            if (allowNullIP && tok[2].end - tok[2].start >= 4 && strncmp(jsonStr + tok[2].start, "null", 4) == 0)
             {
-                addr->host = "0.0.0.0";
+                inet_pton(AF_INET, "0.0.0.0", &addr->host);
                 break;
             }
         default:
@@ -75,7 +83,7 @@ static void parse_config_address(bamboozled_address *addr, jsmntok_t *tok, char 
             unsigned long p = strtoul(jsonStr + tok[3].start, NULL, 0);
             if (errno == ERANGE || p > 65535)
             {
-                fputs("Port number cannot be above 65535\n", stderr);
+                fputs("port number cannot be above 65535\n", stderr);
                 exit(1);
             }
             addr->port = (unsigned short)p;
@@ -147,7 +155,7 @@ static void parse_color(char *s, rgbPixel *pix)
         else
         {
             ((uint8_t *)pix)[i] = p;
-            s = end+1;
+            s = end + 1;
         }
     }
 }
@@ -163,7 +171,7 @@ static void parse_config(char *filename)
     FILE *fp = fopen(filename, "r");
     if (fp == NULL)
     {
-        fputs("Could not open config file \n", stderr);
+        fputs("Could not open config file ", stderr);
         perror(filename);
         exit(1);
     }
@@ -220,9 +228,9 @@ static void parse_config(char *filename)
     free(jsonStr);
 }
 
-static void showHelp(char* arg0)
+static void showHelp(char *arg0)
 {
-    printf("usage: %s [--listen=HOST:PORT] [--destination=HOST:PORT] [--background=R,G,B] [--config=PATH] [--help]", arg0);
+    printf("usage: %s [--listen=HOST:PORT] [--destination=HOST:PORT] [--background=R,G,B] [--config=PATH] [--help]\n", arg0);
     puts("    -l/--listen        the address to accept clients on (default 127.0.0.1:7891)");
     puts("    -d/--destination   the OPC server to send composited frames to (default 127.0.0.1:7890)");
     puts("    -b/--background    set the background color behind all dynamic layers");

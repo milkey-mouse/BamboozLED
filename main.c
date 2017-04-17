@@ -4,9 +4,10 @@
 #include "bamboozled.h"
 #include "opc.h"
 
+// 0x100007f = 127.0.0.1
 bamboozled_config config = {
-    {"127.0.0.1", 7891}, // listen
-    {"127.0.0.1", 7890}, // destination
+    {0x100007f, 7891}, // listen
+    {0x100007f, 7890}, // destination
     {0, 0, 0}            // background
 };
 
