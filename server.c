@@ -161,7 +161,7 @@ uint8_t opc_receive(opc_source source, uint32_t timeout_ms)
                 // payload complete
                 switch (info->header[1])
                 {
-                case OPC_SET_PIXELS:
+                case OPC_SET_ARGB:
                     layer_blit(info->layer, info->header[0], (rgbaPixel *)&(info->payload), info->payload_length / 4);
                     break;
                 case OPC_SYSTEM_EXCLUSIVE:
