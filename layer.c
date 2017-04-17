@@ -15,7 +15,7 @@ layer layers[MAX_CLIENTS];
 void layer_repr(uint8_t c)
 {
     printf("channel %hhu", c);
-    for (int i = 0; i < MAX_PIXELS_PER_LAYER; i++)
+    for (int i = 0; i < maxPixelsSent; i++)
     {
         if (i >= 5)
         {
@@ -48,8 +48,8 @@ void layer_destroy(layer_handle lh)
         if (layers[lh].channelLengths[c] > 0)
         {
             free(layers[lh].channels[c]);
-            layers[lh].channelLengths[c] = 0;
             layers[lh].channels[c] = NULL;
+            layers[lh].channelLengths[c] = 0;
         }
     }
     layers[lh].active = false;
@@ -57,6 +57,10 @@ void layer_destroy(layer_handle lh)
 
 void layer_blit(layer_handle lh, uint8_t channel, rgbaPixel *src, int length)
 {
+    if (length == 0)
+    {
+        return;
+    }
     if (channel == 0)
     {
         for (int i = 1; i < 254; i++)
@@ -76,7 +80,7 @@ void layer_blit(layer_handle lh, uint8_t channel, rgbaPixel *src, int length)
             layers[lh].channelLengths[channel] = length;
             if (maxPixelsSent < length)
             {
-                length = maxPixelsSent;
+                maxPixelsSent = length;
             }
         }
         for (int i = 0; i < length; i++)

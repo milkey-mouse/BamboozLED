@@ -87,9 +87,6 @@ opc_source opc_new_source(uint16_t port)
         return -1;
     }
 
-    // create a new pixel buffer for this client's layer
-    info->layer = layer_init();
-
     // increment opc_next_source only if we were successful
     fprintf(stderr, "Listening on port %d\n", port);
     return opc_next_source++;
@@ -132,6 +129,7 @@ uint8_t opc_receive(opc_source source, uint32_t timeout_ms)
         info->listen_sock = -1;
         info->header_length = 0;
         info->payload_length = 0;
+        info->layer = layer_init();
     }
     else if (info->sock >= 0 && FD_ISSET(info->sock, &readfds))
     {
