@@ -85,9 +85,9 @@ void layer_blit(layer_handle lh, uint8_t channel, rgbaPixel *src, int length)
         }
         for (int i = 0; i < length; i++)
         {
-            layers[lh].channels[channel][i].r = src[i].r * src[i].a >> 8;
-            layers[lh].channels[channel][i].g = src[i].g * src[i].a >> 8;
-            layers[lh].channels[channel][i].b = src[i].b * src[i].a >> 8;
+            layers[lh].channels[channel][i].r = ((src[i].r * src[i].a + 1) * 257) >> 16;
+            layers[lh].channels[channel][i].g = ((src[i].g * src[i].a + 1) * 257) >> 16;
+            layers[lh].channels[channel][i].b = ((src[i].b * src[i].a + 1) * 257) >> 16;
             layers[lh].channels[channel][i].a = src[i].a;
         }
     }
@@ -112,12 +112,10 @@ void layer_composite()
             {
                 for (int p = 0; p < layers[i].channelLengths[c]; p++)
                 {
-                    // TODO: add option for disabling fast blending math
-                    // As of now it can only go up to 254
-                    composited[c][p].r = layers[i].channels[c][p].r + (composited[c][p].r * (255 - layers[i].channels[c][p].a) >> 8);
-                    composited[c][p].g = layers[i].channels[c][p].g + (composited[c][p].g * (255 - layers[i].channels[c][p].a) >> 8);
-                    composited[c][p].b = layers[i].channels[c][p].b + (composited[c][p].b * (255 - layers[i].channels[c][p].a) >> 8);
-                    composited[c][p].a = layers[i].channels[c][p].a + (composited[c][p].a * (255 - layers[i].channels[c][p].a) >> 8);
+                    composited[c][p].r = layers[i].channels[c][p].r + (((composited[c][p].r * (255 - layers[i].channels[c][p].a) + 1) * 257) >> 16);
+                    composited[c][p].g = layers[i].channels[c][p].g + (((composited[c][p].g * (255 - layers[i].channels[c][p].a) + 1) * 257) >> 16);
+                    composited[c][p].b = layers[i].channels[c][p].b + (((composited[c][p].b * (255 - layers[i].channels[c][p].a) + 1) * 257) >> 16);
+                    composited[c][p].a = layers[i].channels[c][p].a + (((composited[c][p].a * (255 - layers[i].channels[c][p].a) + 1) * 257) >> 16);
                 }
             }
         }
