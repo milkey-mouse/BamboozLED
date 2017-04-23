@@ -3,14 +3,23 @@
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include "opc.h"
 
 #define VERSION "0.1"
 #define OPC_SYSTEM_IDENTIFIER 0xB0B
 
-#define MAX_CLIENTS 64
-
 #define JSMN_STRICT
+
+// RGB tuple representing a pixel
+typedef struct
+{
+    uint8_t r, g, b;
+} rgbPixel;
+
+// premultiplied RGBA tuplet representing a pixel
+typedef struct
+{
+    uint8_t r, g, b, a;
+} rgbaPixel;
 
 // Maximum possible number of pixels per message packet
 #define MAX_PIXELS_PER_LAYER ((1 << 16) / sizeof(rgbaPixel))
@@ -37,9 +46,16 @@ typedef struct layer
     struct layer *next;
     uint16_t channelLengths[254];
     rgbaPixel *channels[254];
+    uint16_t port;
+    int listen_sock;
+    int sock; // sock >= 0 iff the connection is open
+    uint16_t header_length;
+    uint8_t header[4];
+    uint16_t payload_length;
+    uint8_t payload[1 << 16];
 } layer;
 
-layer *layer_init();
+layer *layer_init(uint16_t port);
 void layer_unlink(layer *l);
 void layer_moveToFront(layer *l);
 void layer_moveToBack(layer *l);

@@ -1,11 +1,12 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
-#include "bamboozled.h"
-
+#include <unistd.h>
 #include <stdio.h>
 
-//TODO: ARM NEON/x86 SSE for SIMD optimizations
+#include "bamboozled.h"
+#include "opc.h"
 
 rgbaPixel composited[254][MAX_PIXELS_PER_LAYER];
 uint16_t maxPixelsSent = 0;
@@ -28,7 +29,7 @@ void layer_repr(uint8_t c)
     printf("\n");
 }
 
-layer *layer_init()
+layer *layer_init(uint16_t port)
 {
     layer *l = malloc(sizeof(layer));
     memset(l, 0, sizeof(layer));
@@ -42,12 +43,25 @@ layer *layer_init()
         tail->next = l;
         l->prev = tail;
     }
-    return l;
+    l->port = port;
+    if (opc_listen(l))
+    {
+        fprintf(stderr, "Listening on port %d\n", l->port);
+        return l;
+    }
+    else
+    {
+        return NULL;
+    }
 }
 
 void layer_unlink(layer *l)
 {
-    if (l == head)
+    if (l == head && l == tail) {
+        head = NULL;
+        tail = NULL;
+    }
+    else if (l == head)
     {
         head = l->next;
     }
@@ -86,6 +100,12 @@ void layer_moveToBack(layer *l)
 
 void layer_destroy(layer *l)
 {
+    if (l->sock >= 0)
+    {
+        close(l->sock);
+    }
+    l->sock = -1;
+
     layer_unlink(l);
 
     for (int c = 0; c < 254; c++)
@@ -142,6 +162,7 @@ void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length)
 
 void layer_composite()
 {
+    //TODO: ARM NEON/x86 SSE for SIMD optimizations
     for (int c = 0; c < 254; c++)
     {
         for (int i = 0; i < maxPixelsSent; i++)
