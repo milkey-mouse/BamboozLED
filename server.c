@@ -32,7 +32,7 @@ typedef struct
     uint8_t header[4];
     uint16_t payload_length;
     uint8_t payload[1 << 16];
-    layer_handle layer;
+    layer *layer;
 } opc_source_info;
 
 static opc_source_info opc_sources[MAX_CLIENTS];

@@ -7,10 +7,11 @@
 
 //TODO: ARM NEON/x86 SSE for SIMD optimizations
 
-rgbaPixel composited[255][MAX_PIXELS_PER_LAYER];
+rgbaPixel composited[254][MAX_PIXELS_PER_LAYER];
 uint16_t maxPixelsSent = 0;
 
-layer layers[MAX_CLIENTS];
+layer *head;
+layer *tail;
 
 void layer_repr(uint8_t c)
 {
@@ -27,35 +28,77 @@ void layer_repr(uint8_t c)
     printf("\n");
 }
 
-layer_handle layer_init()
+layer *layer_init()
 {
-    layer_handle lh;
-    for (lh = 0; lh < MAX_CLIENTS; lh++)
+    layer *l = malloc(sizeof(layer));
+    memset(l, 0, sizeof(layer));
+    if (head == NULL)
     {
-        if (!layers[lh].active)
-        {
-            layers[lh].active = true;
-            return lh;
-        }
+        head = l;
+        tail = l;
     }
-    return -1;
+    else
+    {
+        tail->next = l;
+        l->prev = tail;
+    }
+    return l;
 }
 
-void layer_destroy(layer_handle lh)
+void layer_unlink(layer *l)
 {
+    if (l == head)
+    {
+        head = l->next;
+    }
+    else if (l == tail)
+    {
+        tail = l->prev;
+    }
+    else
+    {
+        l->prev->next = l->next;
+        l->next->prev = l->prev;
+    }
+}
+
+void layer_moveToFront(layer *l)
+{
+    if (head != l)
+    {
+        layer_unlink(l);
+        l->prev = NULL;
+        l->next = head;
+        head = l;
+    }
+}
+
+void layer_moveToBack(layer *l)
+{
+    if (tail != l)
+    {
+        layer_unlink(l);
+        l->prev = tail;
+        l->next = NULL;
+        tail = l;
+    }
+}
+
+void layer_destroy(layer *l)
+{
+    layer_unlink(l);
+
     for (int c = 0; c < 254; c++)
     {
-        if (layers[lh].channelLengths[c] > 0)
+        if (l->channels[c] != NULL)
         {
-            free(layers[lh].channels[c]);
-            layers[lh].channels[c] = NULL;
-            layers[lh].channelLengths[c] = 0;
+            free(l->channels[c]);
         }
     }
-    layers[lh].active = false;
+    free(l);
 }
 
-void layer_blit(layer_handle lh, uint8_t channel, rgbaPixel *src, int length)
+void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length)
 {
     if (length == 0)
     {
@@ -63,21 +106,23 @@ void layer_blit(layer_handle lh, uint8_t channel, rgbaPixel *src, int length)
     }
     if (channel == 0)
     {
+        layer_blit(l, 1, src, length);
         for (int i = 1; i < 254; i++)
         {
-            //if (layers[lh].channels[i] != NULL)
-            //{
-            layer_blit(lh, i, src, length);
-            //}
+            if (length > l->channelLengths[i])
+            {
+                l->channels[i] = realloc(l->channels[i], length * sizeof(rgbaPixel));
+            }
+            memcpy(l->channels[i], l->channels[0], length);
         }
     }
     else
     {
         channel--;
-        if (length > layers[lh].channelLengths[channel])
+        if (length > l->channelLengths[channel])
         {
-            layers[lh].channels[channel] = realloc(layers[lh].channels[channel], length * sizeof(rgbaPixel));
-            layers[lh].channelLengths[channel] = length;
+            l->channels[channel] = realloc(l->channels[channel], length * sizeof(rgbaPixel));
+            l->channelLengths[channel] = length;
             if (maxPixelsSent < length)
             {
                 maxPixelsSent = length;
@@ -85,10 +130,10 @@ void layer_blit(layer_handle lh, uint8_t channel, rgbaPixel *src, int length)
         }
         for (int i = 0; i < length; i++)
         {
-            layers[lh].channels[channel][i].r = ((src[i].r * src[i].a + 1) * 257) >> 16;
-            layers[lh].channels[channel][i].g = ((src[i].g * src[i].a + 1) * 257) >> 16;
-            layers[lh].channels[channel][i].b = ((src[i].b * src[i].a + 1) * 257) >> 16;
-            layers[lh].channels[channel][i].a = src[i].a;
+            l->channels[channel][i].r = ((src[i].r * src[i].a + 1) * 257) >> 16;
+            l->channels[channel][i].g = ((src[i].g * src[i].a + 1) * 257) >> 16;
+            l->channels[channel][i].b = ((src[i].b * src[i].a + 1) * 257) >> 16;
+            l->channels[channel][i].a = src[i].a;
         }
     }
     layer_composite();
@@ -106,17 +151,14 @@ void layer_composite()
             composited[c][i].b = config.background.b;
             composited[c][i].a = 255;
         }
-        for (int i = 0; i < MAX_CLIENTS; i++)
+        for (layer *l = head; l != NULL; l = l->next)
         {
-            if (layers[i].active)
+            for (int p = 0; p < l->channelLengths[c]; p++)
             {
-                for (int p = 0; p < layers[i].channelLengths[c]; p++)
-                {
-                    composited[c][p].r = layers[i].channels[c][p].r + (((composited[c][p].r * (255 - layers[i].channels[c][p].a) + 1) * 257) >> 16);
-                    composited[c][p].g = layers[i].channels[c][p].g + (((composited[c][p].g * (255 - layers[i].channels[c][p].a) + 1) * 257) >> 16);
-                    composited[c][p].b = layers[i].channels[c][p].b + (((composited[c][p].b * (255 - layers[i].channels[c][p].a) + 1) * 257) >> 16);
-                    composited[c][p].a = layers[i].channels[c][p].a + (((composited[c][p].a * (255 - layers[i].channels[c][p].a) + 1) * 257) >> 16);
-                }
+                composited[c][p].r = l->channels[c][p].r + (((composited[c][p].r * (255 - l->channels[c][p].a) + 1) * 257) >> 16);
+                composited[c][p].g = l->channels[c][p].g + (((composited[c][p].g * (255 - l->channels[c][p].a) + 1) * 257) >> 16);
+                composited[c][p].b = l->channels[c][p].b + (((composited[c][p].b * (255 - l->channels[c][p].a) + 1) * 257) >> 16);
+                composited[c][p].a = l->channels[c][p].a + (((composited[c][p].a * (255 - l->channels[c][p].a) + 1) * 257) >> 16);
             }
         }
     }

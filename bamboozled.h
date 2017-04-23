@@ -31,16 +31,20 @@ typedef struct bamboozled_config
 bamboozled_config config;
 void parse_args(int argc, char **argv);
 
-typedef struct layer {
-    bool active;
+typedef struct layer
+{
+    struct layer *prev;
+    struct layer *next;
     uint16_t channelLengths[254];
     rgbaPixel *channels[254];
 } layer;
 
-typedef int layer_handle;
-layer_handle layer_init();
-void layer_destroy(layer_handle lh);
+layer *layer_init();
+void layer_unlink(layer *l);
+void layer_moveToFront(layer *l);
+void layer_moveToBack(layer *l);
+void layer_destroy(layer *l);
 
-void layer_blit(layer_handle lh, uint8_t channel, rgbaPixel *src, int length);
+void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length);
 void layer_composite();
 void layer_repr(uint8_t c);
