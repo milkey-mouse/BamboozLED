@@ -7,6 +7,5 @@
 #define OPC_SET_ARGB 2
 #define OPC_SYSTEM_EXCLUSIVE 255
 
-bool opc_listen(layer *l);
-
-uint8_t opc_receive(layer *l, uint32_t timeout_ms);
+void opc_serve(in_addr_t host, uint16_t port);
+void *opc_receive(layer *l);

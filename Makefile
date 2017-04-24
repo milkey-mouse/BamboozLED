@@ -1,7 +1,7 @@
 TARGET = bamboozled
-LIBS = -lm
+LIBS = -pthread -lm
 CC = gcc
-CFLAGS = -g -O3 -Wall -std=c99
+CFLAGS = -pthread -g -O3 -Wall -std=c99
 PREFIX = /usr/local
 CONFIG_PATH = /etc/$(TARGET).json
 

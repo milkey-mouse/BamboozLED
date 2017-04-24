@@ -171,7 +171,7 @@ static void parse_config(char *filename)
     FILE *fp = fopen(filename, "r");
     if (fp == NULL)
     {
-        fputs("Could not open config file ", stderr);
+        fputs("could not open config file ", stderr);
         perror(filename);
         exit(1);
     }
@@ -179,7 +179,10 @@ static void parse_config(char *filename)
     int fsize = ftell(fp);
     rewind(fp);
     char *jsonStr = malloc(fsize);
-    fread(jsonStr, 1, fsize, fp);
+    if (fread(jsonStr, 1, fsize, fp) != fsize) {
+        fputs("could not open config file\n", stderr);
+    }
+
     fclose(fp);
 
     jsmn_parser parser;
@@ -191,19 +194,19 @@ static void parse_config(char *filename)
     switch (jsmn_parse(&parser, jsonStr, fsize, tokens, tokcnt))
     {
     case JSMN_ERROR_INVAL:
-        fputs("Config file is not valid JSON\n", stderr);
+        fputs("config file is not valid JSON\n", stderr);
         exit(1);
     case JSMN_ERROR_PART:
-        fputs("Config file JSON is incomplete\n", stderr);
+        fputs("config file JSON is incomplete\n", stderr);
         exit(1);
     case JSMN_ERROR_NOMEM:
-        fputs("Too many tokens in JSON file\n", stderr);
+        fputs("too many tokens in JSON file\n", stderr);
         exit(1);
     }
 
     if (tokcnt < 1 || tokens[0].type != JSMN_OBJECT)
     {
-        fputs("Top-level JSON token is not an object\n", stderr);
+        fputs("top-level JSON token is not an object\n", stderr);
         exit(1);
     }
 

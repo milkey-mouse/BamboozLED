@@ -1,3 +1,4 @@
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -29,7 +30,7 @@ void layer_repr(uint8_t c)
     printf("\n");
 }
 
-layer *layer_init(uint16_t port)
+layer *layer_init()
 {
     layer *l = malloc(sizeof(layer));
     memset(l, 0, sizeof(layer));
@@ -43,21 +44,13 @@ layer *layer_init(uint16_t port)
         tail->next = l;
         l->prev = tail;
     }
-    l->port = port;
-    if (opc_listen(l))
-    {
-        fprintf(stderr, "Listening on port %d\n", l->port);
-        return l;
-    }
-    else
-    {
-        return NULL;
-    }
+    return l;
 }
 
 void layer_unlink(layer *l)
 {
-    if (l == head && l == tail) {
+    if (l == head && l == tail)
+    {
         head = NULL;
         tail = NULL;
     }
@@ -100,12 +93,6 @@ void layer_moveToBack(layer *l)
 
 void layer_destroy(layer *l)
 {
-    if (l->sock >= 0)
-    {
-        close(l->sock);
-    }
-    l->sock = -1;
-
     layer_unlink(l);
 
     for (int c = 0; c < 254; c++)
@@ -156,8 +143,12 @@ void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length)
             l->channels[channel][i].a = src[i].a;
         }
     }
-    layer_composite();
-    layer_repr(channel);
+    pthread_mutex_lock(&dirty_mutex);
+    dirty = true;
+    pthread_cond_broadcast(&dirty_cv);
+    pthread_mutex_unlock(&dirty_mutex);
+    //layer_composite();
+    //layer_repr(channel);
 }
 
 void layer_composite()
@@ -174,6 +165,16 @@ void layer_composite()
         }
         for (layer *l = head; l != NULL; l = l->next)
         {
+            if (l->sock == -1)
+            {
+                if (l->next == NULL)
+                {
+                    break;
+                }
+                layer *tmp = l->next;
+                layer_destroy(l);
+                l = tmp;
+            }
             for (int p = 0; p < l->channelLengths[c]; p++)
             {
                 composited[c][p].r = l->channels[c][p].r + (((composited[c][p].r * (255 - l->channels[c][p].a) + 1) * 257) >> 16);

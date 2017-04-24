@@ -1,3 +1,5 @@
+#include <pthread.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -11,22 +13,42 @@ bamboozled_config config = {
     {0, 0, 0}          // background
 };
 
+bool dirty;
+pthread_cond_t dirty_cv;
+pthread_mutex_t dirty_mutex;
+
+static void *opc_server_wrapper()
+{
+    opc_serve(config.listen.host, config.listen.port);
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     parse_args(argc, argv);
     printf("bamboozled v. %s\n", VERSION);
-    layer *l;
+
+    pthread_cond_init(&dirty_cv, NULL);
+    pthread_mutex_init(&dirty_mutex, NULL);
+
+    pthread_t server_thread;
+    if (pthread_create(&server_thread, NULL, opc_server_wrapper, NULL) < 0)
+    {
+        perror("could not create server thread: ");
+        return 1;
+    }
+
     while (1)
     {
-        l = layer_init(config.listen.port);
-        if (l == NULL)
+        pthread_mutex_lock(&dirty_mutex);
+        while (!dirty)
         {
-            break;
+            pthread_cond_wait(&dirty_cv, &dirty_mutex);
         }
-        while (l->sock >= 0)
-        {
-            opc_receive(l, 10000);
-        }
+        pthread_mutex_unlock(&dirty_mutex);
+        dirty = false;
+        layer_composite();
+        layer_repr(1);
     }
     return 0;
 }

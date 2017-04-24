@@ -2,6 +2,7 @@
 
 #include <netinet/in.h>
 #include <stdbool.h>
+#include <pthread.h>
 #include <stdint.h>
 
 #define VERSION "0.1"
@@ -46,16 +47,10 @@ typedef struct layer
     struct layer *next;
     uint16_t channelLengths[254];
     rgbaPixel *channels[254];
-    uint16_t port;
-    int listen_sock;
-    int sock; // sock >= 0 iff the connection is open
-    uint16_t header_length;
-    uint8_t header[4];
-    uint16_t payload_length;
-    uint8_t payload[1 << 16];
+    int sock;
 } layer;
 
-layer *layer_init(uint16_t port);
+layer *layer_init();
 void layer_unlink(layer *l);
 void layer_moveToFront(layer *l);
 void layer_moveToBack(layer *l);
@@ -64,3 +59,7 @@ void layer_destroy(layer *l);
 void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length);
 void layer_composite();
 void layer_repr(uint8_t c);
+
+bool dirty;
+pthread_cond_t dirty_cv;
+pthread_mutex_t dirty_mutex;
