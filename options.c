@@ -179,7 +179,8 @@ static void parse_config(char *filename)
     int fsize = ftell(fp);
     rewind(fp);
     char *jsonStr = malloc(fsize);
-    if (fread(jsonStr, 1, fsize, fp) != fsize) {
+    if (fread(jsonStr, 1, fsize, fp) != fsize)
+    {
         fputs("could not open config file\n", stderr);
     }
 

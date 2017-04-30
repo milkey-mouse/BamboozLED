@@ -45,10 +45,10 @@ int main(int argc, char **argv)
         {
             pthread_cond_wait(&dirty_cv, &dirty_mutex);
         }
-        pthread_mutex_unlock(&dirty_mutex);
         dirty = false;
+        pthread_mutex_unlock(&dirty_mutex);
         layer_composite();
-        layer_repr(1);
+        layer_repr(0);
     }
     return 0;
 }
