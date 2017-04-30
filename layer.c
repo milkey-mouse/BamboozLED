@@ -69,28 +69,6 @@ void layer_unlink(layer *l)
     }
 }
 
-void layer_moveToFront(layer *l)
-{
-    if (head != l)
-    {
-        layer_unlink(l);
-        l->prev = NULL;
-        l->next = head;
-        head = l;
-    }
-}
-
-void layer_moveToBack(layer *l)
-{
-    if (tail != l)
-    {
-        layer_unlink(l);
-        l->prev = tail;
-        l->next = NULL;
-        tail = l;
-    }
-}
-
 void layer_destroy(layer *l)
 {
     layer_unlink(l);
@@ -103,6 +81,28 @@ void layer_destroy(layer *l)
         }
     }
     free(l);
+}
+
+void layer_moveToFront(layer *l)
+{
+    if (tail != l)
+    {
+        layer_unlink(l);
+        l->prev = tail;
+        l->next = NULL;
+        tail = l;
+    }
+}
+
+void layer_moveToBack(layer *l)
+{
+    if (head != l)
+    {
+        layer_unlink(l);
+        l->prev = NULL;
+        l->next = head;
+        head = l;
+    }
 }
 
 void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length)
