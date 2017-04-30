@@ -26,6 +26,11 @@ static void *opc_server_wrapper()
 int main(int argc, char **argv)
 {
     parse_args(argc, argv);
+    if (config.listen.host == config.destination.host && config.listen.port == config.destination.port)
+    {
+        puts("listen and destination addresses must not be the same");
+        return 1;
+    }
     printf("bamboozled v. %s\n", VERSION);
 
     pthread_cond_init(&dirty_cv, NULL);
