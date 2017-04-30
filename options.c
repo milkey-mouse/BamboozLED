@@ -7,8 +7,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
-
-#include "bamboozled.h"
+#include "options.h"
+#include "layer.h"
 #include "jsmn.h"
 
 static void parse_address(char *str, bamboozled_address *addr)

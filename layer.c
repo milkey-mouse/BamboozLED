@@ -5,8 +5,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
-
-#include "bamboozled.h"
+#include "options.h"
+#include "layer.h"
 #include "opc.h"
 
 rgbaPixel composited[254][MAX_PIXELS_PER_LAYER];

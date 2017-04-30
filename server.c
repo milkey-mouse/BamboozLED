@@ -21,8 +21,6 @@ specific language governing permissions and limitations under the License. */
 #include <unistd.h>
 #include <netdb.h>
 #include <stdio.h>
-
-#include "bamboozled.h"
 #include "opc.h"
 
 void opc_serve(in_addr_t host, uint16_t port)

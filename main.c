@@ -2,8 +2,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-
 #include "bamboozled.h"
+#include "options.h"
 #include "opc.h"
 
 // 0x100007f = 127.0.0.1

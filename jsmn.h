@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stddef.h>
-#include "bamboozled.h"
+#define JSMN_STRICT
 
 /**
  * JSON type identifier. Basic types are:
