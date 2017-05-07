@@ -35,7 +35,7 @@ int main(int argc, char **argv)
             return 1;
         }
     }
-    printf("bamboozled v. %s\n", VERSION);
+    printf("BamboozLED v. %s\n", VERSION);
 
     pthread_cond_init(&dirty_cv, NULL);
     pthread_mutex_init(&dirty_mutex, NULL);
