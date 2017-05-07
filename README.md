@@ -12,7 +12,7 @@ BamboozLED is a compositor for [Open Pixel Control](http://openpixelcontrol.org/
 ### Config file
 
 Create a config file for BamboozLED at `/etc/bamboozled.json`:
-    
+
     {
         "listen": ["127.0.0.1", 7891],
         "destination": ["127.0.0.1", 7890],
@@ -21,7 +21,7 @@ Create a config file for BamboozLED at `/etc/bamboozled.json`:
 
 `listen` specifies which address & port to listen on. By default it only allows connections from `localhost`, but by changing `127.0.0.1` to `null` or `0.0.0.0` you can allow connections from any IP on your local network.
 
-`destination` specifies the address & port of the "target" OPC server that BamboozLED sends the composited pixels to. By default it is assumed that you are running the server on the same machine as BamboozLED on port `7890`.
+`destination` specifies the address & port of the "target" OPC server that BamboozLED sends the composited pixels to. By default it is assumed that you are running the server on the same machine as BamboozLED on port `7890`. `destination` can also be a list of destinations as they are described above, and BamboozLED will forward OPC commands to all of them.
 
 `background` is the color "beneath" all the dyamic layers; that is, if no clients are connected or a pixel is transparent, this background color will show through. (If the lights are supposed to actually provide light as well as looking cool, it may be better to set it to `[255, 255, 255]` (white) so it provides light when no clients are connected.)
 

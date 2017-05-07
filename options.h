@@ -8,6 +8,7 @@ typedef struct bamboozled_address
 {
     in_addr_t host;
     uint16_t port;
+    struct bamboozled_address *next;
 } bamboozled_address;
 
 typedef struct bamboozled_config

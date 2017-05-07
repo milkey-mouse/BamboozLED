@@ -8,9 +8,9 @@
 
 // 0x100007f = 127.0.0.1
 bamboozled_config config = {
-    {0x100007f, 7891}, // listen
-    {0x100007f, 7890}, // destination
-    {0, 0, 0}          // background
+    {0x100007f, 7891, NULL}, // listen
+    {0x100007f, 7890, NULL}, // destination
+    {0, 0, 0}                // background
 };
 
 bool dirty;
@@ -26,10 +26,14 @@ static void *opc_server_wrapper()
 int main(int argc, char **argv)
 {
     parse_args(argc, argv);
-    if (config.listen.host == config.destination.host && config.listen.port == config.destination.port)
+    // check if any destinations loop back to the listen port
+    for (bamboozled_address *dest = &config.destination; dest != NULL; dest = dest->next)
     {
-        puts("listen and destination addresses must not be the same");
-        return 1;
+        if (config.listen.host == dest->host && config.listen.port == dest->port)
+        {
+            puts("listen and destination addresses must not be the same");
+            return 1;
+        }
     }
     printf("bamboozled v. %s\n", VERSION);
 

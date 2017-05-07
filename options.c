@@ -32,9 +32,9 @@ static void parse_address(char *str, bamboozled_address *addr)
     }
     char *l;
     unsigned long p = strtoul(colon + 1, &l, 0);
-    if (errno == ERANGE || p > 65535)
+    if (errno == ERANGE || p > 65535 || p == 0)
     {
-        fputs("port number cannot be above 65535\n", stderr);
+        fputs("port number must be 1-65535\n", stderr);
         exit(1);
     }
     else if (l != strchr(colon + 1, '\0'))
@@ -48,22 +48,53 @@ static void parse_address(char *str, bamboozled_address *addr)
     }
 }
 
+static void parse_color(char *s, rgbPixel *pix)
+{
+    char *end;
+    for (int i = 0; i < 3; i++)
+    {
+        unsigned long p = strtoul(s, &end, 0);
+        if (end == s)
+        {
+            fputs("r,g,b] must be numbers\n", stderr);
+            exit(1);
+        }
+        else if (i != 2 && *end != ',')
+        {
+            fputs("r,g,b must be 3 numbers separated by commas\n", stderr);
+            exit(1);
+        }
+        else if (errno == ERANGE || p > 255)
+        {
+            fputs("r,g,b must be 0-255\n", stderr);
+            exit(1);
+        }
+        else
+        {
+            ((uint8_t *)pix)[i] = p;
+            s = end + 1;
+        }
+    }
+}
+
 static void parse_config_address(bamboozled_address *addr, jsmntok_t *tok, char *jsonStr, bool allowNullIP)
 {
-    if (tok[1].type == JSMN_ARRAY)
+    // check for [host, port]
+    if (tok[0].type == JSMN_ARRAY && tok[0].size == 2)
     {
-        switch (tok[2].type)
+        // parse host
+        switch (tok[1].type)
         {
         case JSMN_STRING:
-            jsonStr[tok[2].end] = '\0';
-            if (inet_pton(AF_INET, jsonStr + tok[2].start, &addr->host) == 0)
+            jsonStr[tok[1].end] = '\0';
+            if (inet_pton(AF_INET, jsonStr + tok[1].start, &addr->host) == 0)
             {
                 fputs("host must be a valid IP address\n", stderr);
                 exit(1);
             }
             break;
         case JSMN_PRIMITIVE:
-            if (allowNullIP && tok[2].end - tok[2].start >= 4 && strncmp(jsonStr + tok[2].start, "null", 4) == 0)
+            if (allowNullIP && tok[1].end - tok[1].start >= 4 && jsonStr[tok[1].start] == 'n')
             {
                 inet_pton(AF_INET, "0.0.0.0", &addr->host);
                 break;
@@ -73,17 +104,18 @@ static void parse_config_address(bamboozled_address *addr, jsmntok_t *tok, char 
             exit(1);
         }
 
-        if (tok[3].type == JSMN_PRIMITIVE)
+        // parse port
+        if (tok[2].type == JSMN_PRIMITIVE)
         {
-            if (!isdigit(jsonStr[tok[3].start]))
+            if (!isdigit(jsonStr[tok[2].start]))
             {
                 fputs("port must be a number\n", stderr);
                 exit(1);
             }
-            unsigned long p = strtoul(jsonStr + tok[3].start, NULL, 0);
-            if (errno == ERANGE || p > 65535)
+            unsigned long p = strtoul(jsonStr + tok[2].start, NULL, 0);
+            if (errno == ERANGE || p > 65535 || p == 0)
             {
-                fputs("port number cannot be above 65535\n", stderr);
+                fputs("port number must be 1-65535\n", stderr);
                 exit(1);
             }
             addr->port = (unsigned short)p;
@@ -101,18 +133,53 @@ static void parse_config_address(bamboozled_address *addr, jsmntok_t *tok, char 
     }
 }
 
+static void parse_config_address_list(bamboozled_address *addr, jsmntok_t *tok, char *jsonStr, bool allowNullIP)
+{
+    // array should be [host,port] or [[host,port], [host,port], ...]
+    if (tok[0].type == JSMN_ARRAY && tok[0].size > 0)
+    {
+        switch (tok[1].type)
+        {
+        case JSMN_ARRAY:
+            // multiple addresses ([[host,port], [host,port], ...])
+            for (int i = 0; i < tok[0].size * (tok[1].size + 1); i += tok[1].size + 1)
+            {
+                parse_config_address(addr, &tok[i + 1], jsonStr, allowNullIP);
+                if (i + tok[1].size + 1 != tok[0].size * (tok[1].size + 1))
+                {
+                    // we need to allocate another address
+                    addr->next = malloc(sizeof(bamboozled_address));
+                    addr = addr->next;
+                    addr->next = NULL;
+                }
+            }
+            return;
+        case JSMN_STRING:
+            // single address ([host,port])
+            parse_config_address(addr, tok, jsonStr, allowNullIP);
+            return;
+        default:
+            break;
+        }
+    }
+    fputs("address format must be [host, port]\n", stderr);
+    exit(1);
+}
+
 static void parse_config_color(rgbPixel *pix, jsmntok_t *tok, char *jsonStr)
 {
-    if (tok[1].type == JSMN_ARRAY)
+    // check for [r, g, b]
+    if (tok[0].type == JSMN_ARRAY && tok[0].size == 3)
     {
+        // parse each color
         for (int i = 0; i < 3; i++)
         {
-            if (tok[2 + i].type == JSMN_PRIMITIVE && isdigit(jsonStr[tok[3].start]))
+            if (tok[i + 1].type == JSMN_PRIMITIVE && isdigit(jsonStr[tok[2].start]))
             {
-                unsigned long p = strtoul(jsonStr + tok[3].start, NULL, 0);
+                unsigned long p = strtoul(jsonStr + tok[2].start, NULL, 0);
                 if (errno == ERANGE || p > 255)
                 {
-                    fputs("[r, g, b] must be between 0 and 255\n", stderr);
+                    fputs("[r, g, b] must be 0-255\n", stderr);
                     exit(1);
                 }
                 ((uint8_t *)pix)[i] = (uint8_t)p;
@@ -128,35 +195,6 @@ static void parse_config_color(rgbPixel *pix, jsmntok_t *tok, char *jsonStr)
     {
         fputs("background format must be [r, g, b]\n", stderr);
         exit(1);
-    }
-}
-
-static void parse_color(char *s, rgbPixel *pix)
-{
-    char *end;
-    for (int i = 0; i < 3; i++)
-    {
-        unsigned long p = strtoul(s, &end, 0);
-        if (end == s)
-        {
-            fputs("r,g,b must be numbers\n", stderr);
-            exit(1);
-        }
-        else if (i != 2 && *end != ',')
-        {
-            fputs("r,g,b must be 3 numbers separated by commas\n", stderr);
-            exit(1);
-        }
-        else if (errno == ERANGE || p > 255)
-        {
-            fputs("r,g,b must be between 0 and 255\n", stderr);
-            exit(1);
-        }
-        else
-        {
-            ((uint8_t *)pix)[i] = p;
-            s = end + 1;
-        }
     }
 }
 
@@ -205,7 +243,7 @@ static void parse_config(char *filename)
         exit(1);
     }
 
-    if (tokcnt < 1 || tokens[0].type != JSMN_OBJECT)
+    if (tokcnt == 0 || tokens[0].type != JSMN_OBJECT)
     {
         fputs("top-level JSON token is not an object\n", stderr);
         exit(1);
@@ -215,20 +253,18 @@ static void parse_config(char *filename)
     {
         if (jsoneq(jsonStr, &tokens[i], "listen"))
         {
-            parse_config_address(&(config.listen), &tokens[i], jsonStr, true);
-            i += 3;
+            parse_config_address(&config.listen, &tokens[i + 1], jsonStr, true);
         }
         else if (jsoneq(jsonStr, &tokens[i], "destination"))
         {
-            parse_config_address(&(config.destination), &tokens[i], jsonStr, false);
-            i += 3;
+            parse_config_address_list(&config.destination, &tokens[i + 1], jsonStr, false);
         }
         else if (jsoneq(jsonStr, &tokens[i], "background"))
         {
-            parse_config_color(&(config.background), &tokens[i], jsonStr);
-            i += 4;
+            parse_config_color(&config.background, &tokens[i + 1], jsonStr);
         }
     }
+    free(tokens);
     free(jsonStr);
 }
 
@@ -264,13 +300,13 @@ void parse_args(int argc, char **argv)
             switch (arg)
             {
             case 'l':
-                parse_address(optarg, &(config.listen));
+                parse_address(optarg, &config.listen);
                 break;
             case 'd':
-                parse_address(optarg, &(config.destination));
+                parse_address(optarg, &config.destination);
                 break;
             case 'b':
-                parse_color(optarg, &(config.background));
+                parse_color(optarg, &config.background);
                 break;
             case 'c':
                 parse_config(optarg);
