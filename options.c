@@ -11,7 +11,7 @@
 #include "layer.h"
 #include "jsmn.h"
 
-static void parse_address(char *str, bamboozled_address *addr)
+static void parse_address(char *str, bamboozled_address *addr, bool multiple)
 {
     char *colon = strchr(str, ':');
     if (colon == NULL)
@@ -37,7 +37,7 @@ static void parse_address(char *str, bamboozled_address *addr)
         fputs("port number must be 1-65535\n", stderr);
         exit(1);
     }
-    else if (l != strchr(colon + 1, '\0'))
+    else if (*l != '\0' && (!multiple || *l != ','))
     {
         fputs("unexpected data after port number\n", stderr);
         exit(1);
@@ -45,6 +45,15 @@ static void parse_address(char *str, bamboozled_address *addr)
     else
     {
         addr->port = (uint16_t)p;
+    }
+    if (multiple && *l == ',')
+    {
+        addr->next = malloc(sizeof(bamboozled_address));
+        parse_address(l + 1, addr->next, multiple);
+    }
+    else
+    {
+        addr->next = NULL;
     }
 }
 
@@ -300,10 +309,10 @@ void parse_args(int argc, char **argv)
             switch (arg)
             {
             case 'l':
-                parse_address(optarg, &config.listen);
+                parse_address(optarg, &config.listen, false);
                 break;
             case 'd':
-                parse_address(optarg, &config.destination);
+                parse_address(optarg, &config.destination, true);
                 break;
             case 'b':
                 parse_color(optarg, &config.background);
