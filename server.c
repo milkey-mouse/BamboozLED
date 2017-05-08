@@ -9,6 +9,7 @@ under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License. */
 
+#include "bamboozled.h"
 #include <arpa/inet.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -63,7 +64,7 @@ void opc_serve(in_addr_t host, uint16_t port)
         l->sock = client_sock;
 
         pthread_t client_thread;
-        if (pthread_create(&client_thread, NULL, (void * (*)(void *))opc_receive, l) < 0)
+        if (pthread_create(&client_thread, NULL, (void *(*)(void *))opc_receive, l) < 0)
         {
             perror("could not create thread to handle connection: ");
             exit(1);
@@ -137,7 +138,7 @@ void *opc_receive(layer *l)
     l->sock = -1;
     fputs("client closed connection\n", stderr);
     pthread_mutex_lock(&dirty_mutex);
-    dirty = true;
+    memset(dirty, 1, sizeof(dirty));
     pthread_cond_broadcast(&dirty_cv);
     pthread_mutex_unlock(&dirty_mutex);
     return 0;

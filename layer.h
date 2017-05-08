@@ -1,8 +1,10 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <pthread.h>
 
+#ifndef PIXELS
 /* RGB tuple representing a pixel. */
 typedef struct rgbPixel
 {
@@ -14,6 +16,8 @@ typedef struct rgbaPixel
 {
     uint8_t r, g, b, a;
 } rgbaPixel;
+#define PIXELS
+#endif
 
 /* Contains the pixel buffers and socket for a client,
    along with links to the previous and next layer to
@@ -60,16 +64,24 @@ void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length);
 /* Iterate over the list of layers, compositing them with
    alpha blending into the static base layer. The layers
    are merged head -> tail, making the tail layer the top-
-   most and the head layer the lowest. */
-void layer_composite();
+   most and the head layer the lowest. If c == 0, it will
+   composite all channels. Otherwise, it will only do the
+   channel with index c (1-255).*/
+void layer_composite(uint8_t c);
+
+/* Send the composited channel to the destination server
+   in dest. layer_composite(c) must be called first for
+   correct data. */
+void layer_send(bamboozled_address *dest, uint8_t c);
 
 /* Print the contents of composited channel c in a human-
    friendly way. This function is only used for debugging. */
 void layer_repr(uint8_t c);
 
-/* Flag that gets set to true when new pixel data is blitted
-   and gets set to false when the new data gets composited. */
-bool dirty;
+/* Flags that get set to true when new pixel data is blitted
+   to that channel index and gets set to false when the new
+   data gets composited. */
+bool dirty[254];
 
 /* pthreads conditional variable that fires when dirty == true. */
 pthread_cond_t dirty_cv;

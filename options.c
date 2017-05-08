@@ -1,3 +1,4 @@
+#include "bamboozled.h"
 #include <arpa/inet.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -10,6 +11,7 @@
 #include "options.h"
 #include "layer.h"
 #include "jsmn.h"
+#include "opc.h"
 
 static void parse_address(char *str, bamboozled_address *addr, bool multiple)
 {
@@ -86,7 +88,7 @@ static void parse_color(char *s, rgbPixel *pix)
     }
 }
 
-static void parse_config_address(bamboozled_address *addr, jsmntok_t *tok, char *jsonStr, bool allowNullIP)
+static void parse_config_address(bamboozled_address *addr, jsmntok_t *tok, char *jsonStr, bool resolveHostnames)
 {
     // check for [host, port]
     if (tok[0].type == JSMN_ARRAY && tok[0].size == 2)
@@ -96,20 +98,29 @@ static void parse_config_address(bamboozled_address *addr, jsmntok_t *tok, char 
         {
         case JSMN_STRING:
             jsonStr[tok[1].end] = '\0';
-            if (inet_pton(AF_INET, jsonStr + tok[1].start, &addr->host) == 0)
+            if (resolveHostnames)
+            {
+                addr->dest = malloc(sizeof(opc_sink) + strlen(jsonStr + tok[1].start) + 1);
+                strcpy((char *)&addr->dest->hostname, jsonStr + tok[1].start);
+                memset(addr->dest, 0, sizeof(opc_sink));
+                addr->dest->sock = -1;
+                opc_resolve(addr);
+            }
+            else if (inet_pton(AF_INET, jsonStr + tok[1].start, &addr->host) == 0)
             {
                 fputs("host must be a valid IP address\n", stderr);
                 exit(1);
             }
+
             break;
         case JSMN_PRIMITIVE:
-            if (allowNullIP && tok[1].end - tok[1].start >= 4 && jsonStr[tok[1].start] == 'n')
+            if (!resolveHostnames && tok[1].end - tok[1].start >= 4 && jsonStr[tok[1].start] == 'n')
             {
                 inet_pton(AF_INET, "0.0.0.0", &addr->host);
                 break;
             }
         default:
-            fprintf(stderr, "host must be an IP address%s\n", allowNullIP ? " or null" : "");
+            fprintf(stderr, "host must be a%s\n", resolveHostnames ? " string" : "n IP address or null");
             exit(1);
         }
 
@@ -142,7 +153,7 @@ static void parse_config_address(bamboozled_address *addr, jsmntok_t *tok, char 
     }
 }
 
-static void parse_config_address_list(bamboozled_address *addr, jsmntok_t *tok, char *jsonStr, bool allowNullIP)
+static void parse_config_address_list(bamboozled_address *addr, jsmntok_t *tok, char *jsonStr, bool resolveHostnames)
 {
     // array should be [host,port] or [[host,port], [host,port], ...]
     if (tok[0].type == JSMN_ARRAY && tok[0].size > 0)
@@ -153,7 +164,7 @@ static void parse_config_address_list(bamboozled_address *addr, jsmntok_t *tok, 
             // multiple addresses ([[host,port], [host,port], ...])
             for (int i = 0; i < tok[0].size * (tok[1].size + 1); i += tok[1].size + 1)
             {
-                parse_config_address(addr, &tok[i + 1], jsonStr, allowNullIP);
+                parse_config_address(addr, &tok[i + 1], jsonStr, resolveHostnames);
                 if (i + tok[1].size + 1 != tok[0].size * (tok[1].size + 1))
                 {
                     // we need to allocate another address
@@ -165,7 +176,7 @@ static void parse_config_address_list(bamboozled_address *addr, jsmntok_t *tok, 
             return;
         case JSMN_STRING:
             // single address ([host,port])
-            parse_config_address(addr, tok, jsonStr, allowNullIP);
+            parse_config_address(addr, tok, jsonStr, resolveHostnames);
             return;
         default:
             break;
@@ -262,11 +273,11 @@ static void parse_config(char *filename)
     {
         if (jsoneq(jsonStr, &tokens[i], "listen"))
         {
-            parse_config_address(&config.listen, &tokens[i + 1], jsonStr, true);
+            parse_config_address(&config.listen, &tokens[i + 1], jsonStr, false);
         }
         else if (jsoneq(jsonStr, &tokens[i], "destination"))
         {
-            parse_config_address_list(&config.destination, &tokens[i + 1], jsonStr, false);
+            parse_config_address_list(&config.destination, &tokens[i + 1], jsonStr, true);
         }
         else if (jsoneq(jsonStr, &tokens[i], "background"))
         {
@@ -290,7 +301,6 @@ static void showHelp(char *arg0)
 
 void parse_args(int argc, char **argv)
 {
-
     if (argc <= 1)
     {
         showHelp(argv[0]);

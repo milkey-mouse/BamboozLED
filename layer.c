@@ -1,3 +1,4 @@
+#include "bamboozled.h"
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -9,7 +10,7 @@
 #include "layer.h"
 #include "opc.h"
 
-rgbaPixel composited[254][MAX_PIXELS_PER_LAYER];
+rgbPixel composited[254][MAX_PIXELS];
 uint16_t maxPixelsSent = 0;
 
 layer *head;
@@ -25,7 +26,7 @@ void layer_repr(uint8_t c)
             printf(", ...");
             break;
         }
-        printf(", [%03hhu, %03hhu, %03hhu, %03hhu]", composited[c][i].r, composited[c][i].g, composited[c][i].b, composited[c][i].a);
+        printf(", [%03hhu, %03hhu, %03hhu]", composited[c][i].r, composited[c][i].g, composited[c][i].b);
     }
     printf("\n");
 }
@@ -122,6 +123,10 @@ void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length)
             }
             memcpy(l->channels[i], l->channels[0], length);
         }
+        pthread_mutex_lock(&dirty_mutex);
+        memset(dirty, 1, sizeof(dirty));
+        pthread_cond_broadcast(&dirty_cv);
+        pthread_mutex_unlock(&dirty_mutex);
     }
     else
     {
@@ -142,26 +147,31 @@ void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length)
             l->channels[channel][i].b = ((src[i].b * src[i].a + 1) * 257) >> 16;
             l->channels[channel][i].a = src[i].a;
         }
+        pthread_mutex_lock(&dirty_mutex);
+        dirty[channel] = true;
+        pthread_cond_broadcast(&dirty_cv);
+        pthread_mutex_unlock(&dirty_mutex);
     }
-    pthread_mutex_lock(&dirty_mutex);
-    dirty = true;
-    pthread_cond_broadcast(&dirty_cv);
-    pthread_mutex_unlock(&dirty_mutex);
-    //layer_composite();
-    //layer_repr(channel);
 }
 
-void layer_composite()
+void layer_composite(uint8_t c)
 {
     //TODO: ARM NEON/x86 SSE for SIMD optimizations
-    for (int c = 0; c < 254; c++)
+    if (c == 0)
     {
+        for (int i = 1; i < 256; i++)
+        {
+            layer_composite(i);
+        }
+    }
+    else
+    {
+        c--;
         for (int i = 0; i < maxPixelsSent; i++)
         {
             composited[c][i].r = config.background.r;
             composited[c][i].g = config.background.g;
             composited[c][i].b = config.background.b;
-            composited[c][i].a = 255;
         }
         for (layer *l = head; l != NULL; l = l->next)
         {
@@ -180,8 +190,22 @@ void layer_composite()
                 composited[c][p].r = l->channels[c][p].r + (((composited[c][p].r * (255 - l->channels[c][p].a) + 1) * 257) >> 16);
                 composited[c][p].g = l->channels[c][p].g + (((composited[c][p].g * (255 - l->channels[c][p].a) + 1) * 257) >> 16);
                 composited[c][p].b = l->channels[c][p].b + (((composited[c][p].b * (255 - l->channels[c][p].a) + 1) * 257) >> 16);
-                composited[c][p].a = l->channels[c][p].a + (((composited[c][p].a * (255 - l->channels[c][p].a) + 1) * 257) >> 16);
             }
         }
+    }
+}
+
+void layer_send(bamboozled_address *dest, uint8_t c)
+{
+    if (c == 0)
+    {
+        for (int i = 0; i < 255; i++)
+        {
+            opc_put_pixels(dest, c, maxPixelsSent, composited[c]);
+        }
+    }
+    else
+    {
+        opc_put_pixels(dest, c - 1, maxPixelsSent, composited[c]);
     }
 }
