@@ -14,10 +14,6 @@ bamboozled_config config = {
     {0, 0, 0}                      // background
 };
 
-bool dirty[254];
-pthread_cond_t dirty_cv;
-pthread_mutex_t dirty_mutex;
-
 static void *opc_server_wrapper()
 {
     opc_serve(config.listen.host, config.listen.port);

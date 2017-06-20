@@ -88,3 +88,6 @@ pthread_cond_t dirty_cv;
 
 /* Mutex locking access to the dirty flag. */
 pthread_mutex_t dirty_mutex;
+
+/* Mutex locking the layers linked list. */
+pthread_mutex_t layers_mutex;

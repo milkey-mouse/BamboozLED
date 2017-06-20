@@ -54,7 +54,7 @@ bool opc_connect(bamboozled_address *info, uint32_t timeout_ms)
     // check if we are waiting for a previous timeout
     struct timespec curtime;
     clock_gettime(CLOCK_MONOTONIC, &curtime);
-    if (curtime.tv_sec < info->dest->timeout_end.tv_sec || (curtime.tv_sec == info->dest->timeout_end.tv_sec && curtime.tv_nsec < info->dest->timeout_end.tv_nsec))
+    if (info->dest != NULL && (curtime.tv_sec < info->dest->timeout_end.tv_sec || (curtime.tv_sec == info->dest->timeout_end.tv_sec && curtime.tv_nsec < info->dest->timeout_end.tv_nsec)))
     {
         return false;
     }
@@ -132,7 +132,7 @@ bool opc_send(bamboozled_address *info, const uint8_t *data, ssize_t len, uint32
     while (total_sent < len)
     {
         void (*pipe_sig)(int) = signal(SIGPIPE, SIG_IGN);
-        sent = send(info->dest->sock, data + total_sent, len - total_sent, 0);
+        sent = send(info->dest->sock, data + total_sent, len - total_sent, MSG_NOSIGNAL);
         signal(SIGPIPE, pipe_sig);
         if (sent <= 0)
         {

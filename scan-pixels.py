@@ -4,7 +4,7 @@ from itertools import chain
 import time
 import opc
 
-client = opc.Client("localhost:7891")
+client = opc.Client("localhost:7891", verbose=True)
 if client.can_connect():
     for i in chain(range(5), range(3, -1, -1)):
         arr = [(0, 0, 0, 0)] * 5

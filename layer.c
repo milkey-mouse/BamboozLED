@@ -15,6 +15,11 @@ uint16_t maxPixelsSent = 0;
 
 layer *head;
 layer *tail;
+pthread_mutex_t layers_mutex;
+
+bool dirty[254];
+pthread_cond_t dirty_cv;
+pthread_mutex_t dirty_mutex;
 
 void layer_repr(uint8_t c)
 {
@@ -35,6 +40,7 @@ layer *layer_init()
 {
     layer *l = malloc(sizeof(layer));
     memset(l, 0, sizeof(layer));
+    pthread_mutex_lock(&layers_mutex);
     if (head == NULL)
     {
         head = l;
@@ -45,6 +51,7 @@ layer *layer_init()
         tail->next = l;
         l->prev = tail;
     }
+    pthread_mutex_unlock(&layers_mutex);
     return l;
 }
 
@@ -58,10 +65,12 @@ void layer_unlink(layer *l)
     else if (l == head)
     {
         head = l->next;
+        l->next->prev = NULL;
     }
     else if (l == tail)
     {
         tail = l->prev;
+        l->prev->next = NULL;
     }
     else
     {
@@ -86,6 +95,7 @@ void layer_destroy(layer *l)
 
 void layer_moveToFront(layer *l)
 {
+    pthread_mutex_lock(&layers_mutex);
     if (tail != l)
     {
         layer_unlink(l);
@@ -93,10 +103,12 @@ void layer_moveToFront(layer *l)
         l->next = NULL;
         tail = l;
     }
+    pthread_mutex_unlock(&layers_mutex);
 }
 
 void layer_moveToBack(layer *l)
 {
+    pthread_mutex_lock(&layers_mutex);
     if (head != l)
     {
         layer_unlink(l);
@@ -104,6 +116,7 @@ void layer_moveToBack(layer *l)
         l->next = head;
         head = l;
     }
+    pthread_mutex_unlock(&layers_mutex);
 }
 
 void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length)
@@ -159,39 +172,76 @@ void layer_composite(uint8_t c)
     //TODO: ARM NEON/x86 SSE for SIMD optimizations
     if (c == 0)
     {
-        for (int i = 1; i < 256; i++)
-        {
-            layer_composite(i);
-        }
-    }
-    else
-    {
-        c--;
-        for (int i = 0; i < maxPixelsSent; i++)
-        {
-            composited[c][i].r = config.background.r;
-            composited[c][i].g = config.background.g;
-            composited[c][i].b = config.background.b;
-        }
+        pthread_mutex_lock(&layers_mutex);
         for (layer *l = head; l != NULL; l = l->next)
         {
             if (l->sock == -1)
             {
-                if (l->next == NULL)
+                layer *tmp = l->next;
+                layer_destroy(l);
+                if (tmp == NULL)
                 {
                     break;
                 }
-                layer *tmp = l->next;
-                layer_destroy(l);
                 l = tmp;
             }
-            for (int p = 0; p < l->channelLengths[c]; p++)
+
+            for (int c = 0; c < 254; c++)
             {
-                composited[c][p].r = l->channels[c][p].r + (((composited[c][p].r * (255 - l->channels[c][p].a) + 1) * 257) >> 16);
-                composited[c][p].g = l->channels[c][p].g + (((composited[c][p].g * (255 - l->channels[c][p].a) + 1) * 257) >> 16);
-                composited[c][p].b = l->channels[c][p].b + (((composited[c][p].b * (255 - l->channels[c][p].a) + 1) * 257) >> 16);
+                rgbPixel *comp = composited[c];
+                for (int i = 0; i < maxPixelsSent; i++)
+                {
+                    comp[i].r = config.background.r;
+                    comp[i].g = config.background.g;
+                    comp[i].b = config.background.b;
+                }
+
+                rgbaPixel *chan = l->channels[c];
+                for (int p = 0; p < l->channelLengths[c]; p++)
+                {
+                    comp[p].r = chan[p].r + (((comp[p].r * (255 - chan[p].a) + 1) * 257) >> 16);
+                    comp[p].g = chan[p].g + (((comp[p].g * (255 - chan[p].a) + 1) * 257) >> 16);
+                    comp[p].b = chan[p].b + (((comp[p].b * (255 - chan[p].a) + 1) * 257) >> 16);
+                }
             }
         }
+        pthread_mutex_unlock(&layers_mutex);
+    }
+    else
+    {
+        c--;
+
+        rgbPixel *comp = composited[c];
+        for (int i = 0; i < maxPixelsSent; i++)
+        {
+            comp[i].r = config.background.r;
+            comp[i].g = config.background.g;
+            comp[i].b = config.background.b;
+        }
+
+        pthread_mutex_lock(&layers_mutex);
+        for (layer *l = head; l != NULL; l = l->next)
+        {
+            if (l->sock == -1)
+            {
+                layer *tmp = l->next;
+                layer_destroy(l);
+                if (tmp == NULL)
+                {
+                    break;
+                }
+                l = tmp;
+            }
+
+            rgbaPixel *chan = l->channels[c];
+            for (int p = 0; p < l->channelLengths[c]; p++)
+            {
+                comp[p].r = chan[p].r + (((comp[p].r * (255 - chan[p].a) + 1) * 257) >> 16);
+                comp[p].g = chan[p].g + (((comp[p].g * (255 - chan[p].a) + 1) * 257) >> 16);
+                comp[p].b = chan[p].b + (((comp[p].b * (255 - chan[p].a) + 1) * 257) >> 16);
+            }
+        }
+        pthread_mutex_unlock(&layers_mutex);
     }
 }
 

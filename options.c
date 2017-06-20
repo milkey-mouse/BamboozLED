@@ -13,7 +13,7 @@
 #include "jsmn.h"
 #include "opc.h"
 
-static void parse_address(char *str, bamboozled_address *addr, bool multiple)
+static void parse_address(char *str, bamboozled_address *addr, bool multiple, bool resolveHostnames)
 {
     char *colon = strchr(str, ':');
     if (colon == NULL)
@@ -22,11 +22,20 @@ static void parse_address(char *str, bamboozled_address *addr, bool multiple)
         exit(1);
     }
     *colon = '\0';
-    if (inet_pton(AF_INET, str, &addr->host) == 0)
+    if (resolveHostnames)
+    {
+        addr->dest = malloc(sizeof(opc_sink) + strlen(str) + 1);
+        strcpy((char *)&addr->dest->hostname, str);
+        memset(addr->dest, 0, sizeof(opc_sink));
+        addr->dest->sock = -1;
+        opc_resolve(addr);
+    }
+    else if (inet_pton(AF_INET, str, &addr->host) == 0)
     {
         fputs("host must be a valid IP address\n", stderr);
         exit(1);
     }
+
     if (!isdigit(colon[1]))
     {
         fputs("port must be a number\n", stderr);
@@ -51,7 +60,7 @@ static void parse_address(char *str, bamboozled_address *addr, bool multiple)
     if (multiple && *l == ',')
     {
         addr->next = malloc(sizeof(bamboozled_address));
-        parse_address(l + 1, addr->next, multiple);
+        parse_address(l + 1, addr->next, multiple, resolveHostnames);
     }
     else
     {
@@ -319,10 +328,10 @@ void parse_args(int argc, char **argv)
             switch (arg)
             {
             case 'l':
-                parse_address(optarg, &config.listen, false);
+                parse_address(optarg, &config.listen, false, false);
                 break;
             case 'd':
-                parse_address(optarg, &config.destination, true);
+                parse_address(optarg, &config.destination, true, true);
                 break;
             case 'b':
                 parse_color(optarg, &config.background);
