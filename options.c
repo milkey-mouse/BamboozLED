@@ -76,7 +76,7 @@ static void parse_color(char *s, rgbPixel *pix)
         unsigned long p = strtoul(s, &end, 0);
         if (end == s)
         {
-            fputs("r,g,b] must be numbers\n", stderr);
+            fputs("r,g,b must be numbers\n", stderr);
             exit(1);
         }
         else if (i != 2 && *end != ',')
