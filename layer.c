@@ -10,28 +10,28 @@
 #include "layer.h"
 #include "opc.h"
 
-rgbPixel composited[254][MAX_PIXELS];
-uint16_t maxPixelsSent = 0;
+rgbArray composited[255];
+pthread_mutex_t composited_mutex;
 
 layer *head;
 layer *tail;
 pthread_mutex_t layers_mutex;
 
-uint64_t dirty[4];
+uint32_t dirty[8];
 pthread_cond_t dirty_cv;
 pthread_mutex_t dirty_mutex;
 
 void layer_repr(uint8_t c)
 {
     printf("channel %hhu", c);
-    for (int i = 0; i < maxPixelsSent; i++)
+    for (int i = 0; i < composited[c].length; i++)
     {
         if (i >= 5)
         {
             printf(", ...");
             break;
         }
-        printf(", [%03hhu, %03hhu, %03hhu]", composited[c][i].r, composited[c][i].g, composited[c][i].b);
+        printf(", [%03hhu, %03hhu, %03hhu]", composited[c].pixels[i].r, composited[c].pixels[i].g, composited[c].pixels[i].b);
     }
     printf("\n");
 }
@@ -83,11 +83,11 @@ void layer_destroy(layer *l)
 {
     layer_unlink(l);
 
-    for (int c = 0; c < 254; c++)
+    for (int c = 0; c < 255; c++)
     {
-        if (l->channels[c] != NULL)
+        if (l->channels[c].pixels != NULL)
         {
-            free(l->channels[c]);
+            free(l->channels[c].pixels);
         }
     }
     free(l);
@@ -101,6 +101,7 @@ void layer_moveToFront(layer *l)
         layer_unlink(l);
         l->prev = tail;
         l->next = NULL;
+        tail->next = l;
         tail = l;
     }
     pthread_mutex_unlock(&layers_mutex);
@@ -114,6 +115,7 @@ void layer_moveToBack(layer *l)
         layer_unlink(l);
         l->prev = NULL;
         l->next = head;
+        head->prev = l;
         head = l;
     }
     pthread_mutex_unlock(&layers_mutex);
@@ -128,13 +130,21 @@ void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length)
     if (channel == 0)
     {
         layer_blit(l, 1, src, length);
-        for (int i = 1; i < 254; i++)
+        for (int i = 1; i < 255; i++)
         {
-            if (length > l->channelLengths[i])
+            if (length > l->channels[i].length)
             {
-                l->channels[i] = realloc(l->channels[i], length * sizeof(rgbaPixel));
+                if (length > composited[channel].length)
+                {
+                    pthread_mutex_lock(&composited_mutex);
+                    composited[channel].pixels = realloc(composited[channel].pixels, length * sizeof(rgbPixel));
+                    composited[channel].length = length;
+                    pthread_mutex_unlock(&composited_mutex);
+                }
+                l->channels[i].pixels = realloc(l->channels[i].pixels, length * sizeof(rgbaPixel));
+                l->channels[i].length = length;
             }
-            memcpy(l->channels[i], l->channels[0], length);
+            memcpy(l->channels[i].pixels, l->channels[0].pixels, length);
         }
         pthread_mutex_lock(&dirty_mutex);
         memset(dirty, 0xFF, sizeof(dirty));
@@ -144,24 +154,27 @@ void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length)
     else
     {
         channel--;
-        if (length > l->channelLengths[channel])
+        if (length > l->channels[channel].length)
         {
-            l->channels[channel] = realloc(l->channels[channel], length * sizeof(rgbaPixel));
-            l->channelLengths[channel] = length;
-            if (maxPixelsSent < length)
+            if (length > composited[channel].length)
             {
-                maxPixelsSent = length;
+                pthread_mutex_lock(&composited_mutex);
+                composited[channel].pixels = realloc(composited[channel].pixels, length * sizeof(rgbPixel));
+                composited[channel].length = length;
+                pthread_mutex_unlock(&composited_mutex);
             }
+            l->channels[channel].pixels = realloc(l->channels[channel].pixels, length * sizeof(rgbaPixel));
+            l->channels[channel].length = length;
         }
         for (int i = 0; i < length; i++)
         {
-            l->channels[channel][i].r = ((src[i].r * src[i].a + 1) * 257) >> 16;
-            l->channels[channel][i].g = ((src[i].g * src[i].a + 1) * 257) >> 16;
-            l->channels[channel][i].b = ((src[i].b * src[i].a + 1) * 257) >> 16;
-            l->channels[channel][i].a = src[i].a;
+            l->channels[channel].pixels[i].r = ((src[i].r * src[i].a + 1) * 257) >> 16;
+            l->channels[channel].pixels[i].g = ((src[i].g * src[i].a + 1) * 257) >> 16;
+            l->channels[channel].pixels[i].b = ((src[i].b * src[i].a + 1) * 257) >> 16;
+            l->channels[channel].pixels[i].a = src[i].a;
         }
         pthread_mutex_lock(&dirty_mutex);
-        dirty[channel >> 6] |= (1 << (channel & 127));
+        dirty[channel >> 5] |= (1 << (channel & 31));
         pthread_cond_broadcast(&dirty_cv);
         pthread_mutex_unlock(&dirty_mutex);
     }
@@ -172,51 +185,22 @@ void layer_composite(uint8_t c)
     //TODO: ARM NEON/x86 SSE for SIMD optimizations
     if (c == 0)
     {
-        pthread_mutex_lock(&layers_mutex);
-        for (layer *l = head; l != NULL; l = l->next)
+        for (c = 1; c <= 255; c++)
         {
-            if (l->sock == -1)
-            {
-                layer *tmp = l->next;
-                layer_destroy(l);
-                if (tmp == NULL)
-                {
-                    break;
-                }
-                l = tmp;
-            }
-
-            for (int c = 0; c < 254; c++)
-            {
-                rgbPixel *comp = composited[c];
-                for (int i = 0; i < maxPixelsSent; i++)
-                {
-                    comp[i].r = config.background.r;
-                    comp[i].g = config.background.g;
-                    comp[i].b = config.background.b;
-                }
-
-                rgbaPixel *chan = l->channels[c];
-                for (int p = 0; p < l->channelLengths[c]; p++)
-                {
-                    comp[p].r = chan[p].r + (((comp[p].r * (255 - chan[p].a) + 1) * 257) >> 16);
-                    comp[p].g = chan[p].g + (((comp[p].g * (255 - chan[p].a) + 1) * 257) >> 16);
-                    comp[p].b = chan[p].b + (((comp[p].b * (255 - chan[p].a) + 1) * 257) >> 16);
-                }
-            }
+            layer_composite(c);
         }
-        pthread_mutex_unlock(&layers_mutex);
     }
     else
     {
         c--;
 
-        rgbPixel *comp = composited[c];
-        for (int i = 0; i < maxPixelsSent; i++)
+        pthread_mutex_lock(&composited_mutex);
+        rgbPixel *comp = composited[c].pixels;
+        for (int i = 0; i < composited[c].length; i++)
         {
-            comp[i].r = config.background.r;
-            comp[i].g = config.background.g;
-            comp[i].b = config.background.b;
+            composited[c].pixels[i].r = config.background.r;
+            composited[c].pixels[i].g = config.background.g;
+            composited[c].pixels[i].b = config.background.b;
         }
 
         pthread_mutex_lock(&layers_mutex);
@@ -233,8 +217,8 @@ void layer_composite(uint8_t c)
                 l = tmp;
             }
 
-            rgbaPixel *chan = l->channels[c];
-            for (int p = 0; p < l->channelLengths[c]; p++)
+            rgbaPixel *chan = l->channels[c].pixels;
+            for (int p = 0; p < l->channels[c].length; p++)
             {
                 comp[p].r = chan[p].r + (((comp[p].r * (255 - chan[p].a) + 1) * 257) >> 16);
                 comp[p].g = chan[p].g + (((comp[p].g * (255 - chan[p].a) + 1) * 257) >> 16);
@@ -242,6 +226,7 @@ void layer_composite(uint8_t c)
             }
         }
         pthread_mutex_unlock(&layers_mutex);
+        pthread_mutex_unlock(&composited_mutex);
     }
 }
 
@@ -249,13 +234,13 @@ void layer_send(bamboozled_address *dest, uint8_t c)
 {
     if (c == 0)
     {
-        for (int i = 0; i < 255; i++)
+        for (int i = 1; i <= 255; i++)
         {
-            opc_put_pixels(dest, c, maxPixelsSent, composited[c]);
+            opc_put_pixels(dest, i, composited[i - 1].length, composited[i - 1].pixels);
         }
     }
     else
     {
-        opc_put_pixels(dest, c - 1, maxPixelsSent, composited[c]);
+        opc_put_pixels(dest, c, composited[c - 1].length, composited[c - 1].pixels);
     }
 }

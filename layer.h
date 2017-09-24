@@ -19,6 +19,18 @@ typedef struct rgbaPixel
 #define PIXELS
 #endif
 
+typedef struct rgbArray
+{
+    uint16_t length;
+    rgbPixel *pixels;
+} rgbArray;
+
+typedef struct rgbaArray
+{
+    uint16_t length;
+    rgbaPixel *pixels;
+} rgbaArray;
+
 /* Contains the pixel buffers and socket for a client,
    along with links to the previous and next layer to
    form a doubly-linked list. Layers are composited
@@ -27,8 +39,7 @@ typedef struct layer
 {
     struct layer *prev;
     struct layer *next;
-    uint16_t channelLengths[254];
-    rgbaPixel *channels[254];
+    rgbaArray channels[255];
     int sock;
 } layer;
 
@@ -81,7 +92,7 @@ void layer_repr(uint8_t c);
 /* Bitfield that gets set to true when new pixel data is blitted
    to its channel index and gets set to false when the new data
    gets composited. */
-uint64_t dirty[4];
+uint32_t dirty[8];
 
 /* pthreads conditional variable that fires when dirty == true. */
 pthread_cond_t dirty_cv;
