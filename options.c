@@ -305,7 +305,6 @@ static void showHelp(char *arg0)
     puts("    -b/--background    set the background color behind all dynamic layers");
     puts("    -c/--config        read configuration from a JSON file, overriding any previous flags");
     puts("    -h/--help          shows this help text");
-    exit(0);
 }
 
 void parse_args(int argc, char **argv)
@@ -313,6 +312,7 @@ void parse_args(int argc, char **argv)
     if (argc <= 1)
     {
         showHelp(argv[0]);
+        exit(0);
     }
     else
     {
@@ -321,9 +321,10 @@ void parse_args(int argc, char **argv)
             {"destination", required_argument, NULL, 'd'},
             {"background", required_argument, NULL, 'b'},
             {"config", required_argument, NULL, 'c'},
-            {"help", no_argument, NULL, 'h'}};
+            {"help", no_argument, NULL, 'h'},
+            {NULL, 0, NULL, 0}};
         int arg;
-        while ((arg = getopt_long(argc, argv, "l:d:b:c:h:", longopts, NULL)) != -1)
+        while ((arg = getopt_long(argc, argv, "l:d:b:c:h", longopts, NULL)) != -1)
         {
             switch (arg)
             {
@@ -341,6 +342,12 @@ void parse_args(int argc, char **argv)
                 break;
             case 'h':
                 showHelp(argv[0]);
+                exit(0);
+                break;
+            case '?':
+                showHelp(argv[0]);
+                exit(1);
+                break;
             }
         }
     }
