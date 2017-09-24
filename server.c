@@ -138,7 +138,7 @@ void *opc_receive(layer *l)
     l->sock = -1;
     fputs("client closed connection\n", stderr);
     pthread_mutex_lock(&dirty_mutex);
-    memset(dirty, 1, sizeof(dirty));
+    memset(dirty, 0xFF, sizeof(dirty));
     pthread_cond_broadcast(&dirty_cv);
     pthread_mutex_unlock(&dirty_mutex);
     return 0;

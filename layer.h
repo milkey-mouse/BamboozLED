@@ -78,10 +78,10 @@ void layer_send(bamboozled_address *dest, uint8_t c);
    friendly way. This function is only used for debugging. */
 void layer_repr(uint8_t c);
 
-/* Flags that get set to true when new pixel data is blitted
-   to that channel index and gets set to false when the new
-   data gets composited. */
-bool dirty[254];
+/* Bitfield that gets set to true when new pixel data is blitted
+   to its channel index and gets set to false when the new data
+   gets composited. */
+uint64_t dirty[4];
 
 /* pthreads conditional variable that fires when dirty == true. */
 pthread_cond_t dirty_cv;

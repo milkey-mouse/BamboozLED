@@ -53,7 +53,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    bool dirty_main[254];
+    uint64_t dirty_main[4];
     memset(dirty_main, 0, sizeof(dirty_main));
     while (1)
     {
@@ -62,23 +62,33 @@ int main(int argc, char **argv)
         {
             pthread_cond_wait(&dirty_cv, &dirty_mutex);
         }
-        memcpy(dirty_main, dirty, sizeof(dirty_main));
+        memcpy(dirty_main, dirty, sizeof(dirty));
         memset(dirty, 0, sizeof(dirty));
         pthread_mutex_unlock(&dirty_mutex);
-        for (uint8_t d = 0; d < 254; d++)
+        uint8_t d = 0;
+        for (int i = 0; i < 4; i++)
         {
-            if (dirty_main[d])
+            for (int j = 0; j < 64; j++)
             {
-                layer_composite(d);
+                if (dirty_main[i] & (1 << j))
+                {
+                    layer_composite(d);
+                }
+                d++;
             }
         }
         for (bamboozled_address *dest = &config.destination; dest != NULL; dest = dest->next)
         {
-            for (int d = 0; d < 254; d++)
+            d = 0;
+            for (int i = 0; i < 4; i++)
             {
-                if (dirty_main[d])
+                for (int j = 0; j < 64; j++)
                 {
-                    layer_send(dest, d + 1);
+                    d++;
+                    if (dirty_main[i] & (1 << j))
+                    {
+                        layer_send(dest, d);
+                    }
                 }
             }
         }

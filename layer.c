@@ -17,7 +17,7 @@ layer *head;
 layer *tail;
 pthread_mutex_t layers_mutex;
 
-bool dirty[254];
+uint64_t dirty[4];
 pthread_cond_t dirty_cv;
 pthread_mutex_t dirty_mutex;
 
@@ -137,7 +137,7 @@ void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length)
             memcpy(l->channels[i], l->channels[0], length);
         }
         pthread_mutex_lock(&dirty_mutex);
-        memset(dirty, 1, sizeof(dirty));
+        memset(dirty, 0xFF, sizeof(dirty));
         pthread_cond_broadcast(&dirty_cv);
         pthread_mutex_unlock(&dirty_mutex);
     }
@@ -161,7 +161,7 @@ void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length)
             l->channels[channel][i].a = src[i].a;
         }
         pthread_mutex_lock(&dirty_mutex);
-        dirty[channel] = true;
+        dirty[channel >> 6] |= (1 << (channel & 127));
         pthread_cond_broadcast(&dirty_cv);
         pthread_mutex_unlock(&dirty_mutex);
     }
