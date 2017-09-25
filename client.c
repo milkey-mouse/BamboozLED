@@ -10,18 +10,17 @@ CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License. */
 
 #include "bamboozled.h"
-#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <signal.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <stdio.h>
-#include <time.h>
+#include <poll.h>
 #include "opc.h"
 
 void opc_resolve(bamboozled_address *info)
@@ -77,47 +76,58 @@ bool opc_connect(bamboozled_address *info, uint32_t timeout_ms)
         return false;
     }
 
-    // create timeout for select()
-    struct timeval timeout;
-    timeout.tv_sec = timeout_ms / 1000;
-    timeout.tv_usec = timeout_ms % 1000;
+    struct pollfd sockfd;
+    sockfd.fd = sock;
+    sockfd.events = POLLOUT;
+    sockfd.revents = 0;
 
     // wait for a result
-    fd_set writefds;
-    FD_ZERO(&writefds);
-    FD_SET(sock, &writefds);
-    select(sock + 1, NULL, &writefds, NULL, &timeout);
-    if (FD_ISSET(sock, &writefds))
+    int rv = poll(&sockfd, 1, timeout_ms);
+    if (rv == 0)
     {
-        int opt_errno = 0;
-        socklen_t opt_len;
-        getsockopt(sock, SOL_SOCKET, SO_ERROR, &opt_errno, &opt_len);
-        if (opt_errno == 0)
+        fprintf(stderr, "connection to %s:%hu timed out after %d ms\n", info->dest->hostname, info->port, timeout_ms);
+        return false;
+    }
+    else if (rv == -1)
+    {
+        fprintf(stderr, "failed to connect to %s: %s\n", info->dest->hostname, strerror(errno));
+        return false;
+    }
+    else if (sockfd.revents & POLLHUP)
+    {
+        fprintf(stderr, "failed to connect to %s: connection refused\n", info->dest->hostname);
+        return false;
+    }
+    else if (sockfd.revents & POLLERR)
+    {
+        fprintf(stderr, "failed to connect to %s:%hu\n", info->dest->hostname, info->port);
+        return false;
+    }
+    else if (sockfd.revents & POLLNVAL)
+    {
+        fprintf(stderr, "failed to connect to %s: poll() returned errors\n", info->dest->hostname);
+        return false;
+    }
+
+    int opt_errno = 0;
+    socklen_t opt_len;
+    getsockopt(sock, SOL_SOCKET, SO_ERROR, &opt_errno, &opt_len);
+    if (opt_errno != 0)
+    {
+        fprintf(stderr, "failed to connect to %s: %s\n", info->dest->hostname, strerror(opt_errno));
+        close(sock);
+        if (opt_errno == ECONNREFUSED)
         {
-            fprintf(stderr, "connected to destination %s:%hu\n", info->dest->hostname, info->port);
-            info->dest->sock = sock;
-            return true;
-        }
-        else
-        {
-            fprintf(stderr, "failed to connect to %s: %s\n", info->dest->hostname, strerror(opt_errno));
-            close(sock);
-            if (opt_errno == ECONNREFUSED)
-            {
-                // set a timer before another connection attempt
-                info->dest->timeout_end.tv_sec = curtime.tv_sec + timeout.tv_sec;
-                info->dest->timeout_end.tv_nsec = curtime.tv_nsec + timeout.tv_usec * 1000;
-                if (info->dest->timeout_end.tv_nsec > 1000000000)
-                {
-                    info->dest->timeout_end.tv_nsec -= 1000000000;
-                    info->dest->timeout_end.tv_sec++;
-                }
-            }
-            return false;
+            // set a timer before another connection attempt
+            info->dest->timeout_end.tv_nsec = curtime.tv_nsec + (timeout_ms % 1000) * 1000;
+            info->dest->timeout_end.tv_sec = curtime.tv_sec + timeout_ms / 1000 + info->dest->timeout_end.tv_nsec / 1000000000;
+            info->dest->timeout_end.tv_nsec %= 1000000000;
         }
     }
-    fprintf(stderr, "connection to %s:%hu timed out after %d ms\n", info->dest->hostname, info->port, timeout_ms);
-    return false;
+
+    fprintf(stderr, "connected to destination %s:%hu\n", info->dest->hostname, info->port);
+    info->dest->sock = sock;
+    return true;
 }
 
 bool opc_send(bamboozled_address *info, const uint8_t *data, ssize_t len, uint32_t timeout_ms)
@@ -131,10 +141,8 @@ bool opc_send(bamboozled_address *info, const uint8_t *data, ssize_t len, uint32
     setsockopt(info->dest->sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
     while (total_sent < len)
     {
-        void (*pipe_sig)(int) = signal(SIGPIPE, SIG_IGN);
         sent = send(info->dest->sock, data + total_sent, len - total_sent, MSG_NOSIGNAL);
-        signal(SIGPIPE, pipe_sig);
-        if (sent <= 0)
+        if ((errno != EINPROGRESS && errno != 0) || sent <= 0)
         {
             fputs("error sending data to ", stderr);
             perror(info->dest->hostname);

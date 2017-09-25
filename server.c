@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License. */
 
 #include "bamboozled.h"
 #include <arpa/inet.h>
-#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/time.h>
