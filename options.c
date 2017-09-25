@@ -203,9 +203,9 @@ static void parse_config_color(rgbPixel *pix, jsmntok_t *tok, char *jsonStr)
         // parse each color
         for (int i = 0; i < 3; i++)
         {
-            if (tok[i + 1].type == JSMN_PRIMITIVE && isdigit(jsonStr[tok[2].start]))
+            if (tok[i + 1].type == JSMN_PRIMITIVE && isdigit(jsonStr[tok[i + 1].start]))
             {
-                unsigned long p = strtoul(jsonStr + tok[2].start, NULL, 0);
+                unsigned long p = strtoul(jsonStr + tok[i + 1].start, NULL, 0);
                 if (errno == ERANGE || p > 255)
                 {
                     fputs("[r, g, b] must be 0-255\n", stderr);
