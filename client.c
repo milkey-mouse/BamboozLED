@@ -155,6 +155,10 @@ bool opc_send(bamboozled_address *info, const uint8_t *data, ssize_t len, uint32
 
 bool opc_put_pixels(bamboozled_address *info, uint8_t channel, uint16_t count, rgbPixel *pixels)
 {
+    if (count == 0)
+    {
+        return true;
+    }
     if (info->dest->sock == -1 && !opc_connect(info, OPC_SEND_TIMEOUT))
     {
         return false;
