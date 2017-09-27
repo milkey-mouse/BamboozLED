@@ -17,9 +17,6 @@
    moving layers up and down. */
 #define OPC_SYSTEM_EXCLUSIVE 255
 
-/* Maximum number of RGBA pixels per message packet. */
-#define MAX_PIXELS ((1 << 16) / sizeof(rgbaPixel))
-
 /* Listen on a specified interface and port, dispatching new threads to handle
    clients. */
 void opc_serve(in_addr_t host, uint16_t port);
