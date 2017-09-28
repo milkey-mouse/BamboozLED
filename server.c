@@ -115,8 +115,11 @@ void *opc_receive(layer *l)
                 // payload complete
                 switch (header[1])
                 {
+                case OPC_SET_PIXELS:
+                    layer_blit(l, header[0], (pixArray)(rgbPixel *)&(payload), payload_length / 3, false);
+                    break;
                 case OPC_SET_ARGB:
-                    layer_blit(l, header[0], (rgbaPixel *)&(payload), payload_length / 4);
+                    layer_blit(l, header[0], (pixArray)(rgbaPixel *)&(payload), payload_length / 4, true);
                     break;
                 case OPC_SYSTEM_EXCLUSIVE:
                     if (((payload[0] << 8) | payload[1]) == OPC_SYSTEM_IDENTIFIER)

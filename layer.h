@@ -19,17 +19,25 @@ typedef struct rgbaPixel
 #define PIXELS
 #endif
 
+/* Array of RGB pixels with length value. */
 typedef struct rgbArray
 {
     uint16_t length;
     rgbPixel *pixels;
 } rgbArray;
 
+/* Array of RGBA pixels with length value. */
 typedef struct rgbaArray
 {
     uint16_t length;
     rgbaPixel *pixels;
 } rgbaArray;
+
+/* Array of either RGB or RGBA pixels. */
+typedef union pixArray {
+    rgbPixel *rgb;
+    rgbaPixel *rgba;
+} pixArray;
 
 /* Contains the pixel buffers and socket for a client,
    along with links to the previous and next layer to
@@ -66,11 +74,18 @@ void layer_moveToFront(layer *l);
    background layer). */
 void layer_moveToBack(layer *l);
 
-/* Copy and premultiply alpha for length pixels (length*4
-   bytes) from *src to the specified channel in the given
-   layer. Iff channel == 0, the pixels will be copied to
-   every other channel (1-255). */
-void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length);
+/* Move the layer towards the tail of the list, causing
+   it to be composited one layer above where it was. */
+void layer_moveUp(layer *l);
+
+/* Move the layer towards the head of the list, causing
+   it to be composited one layer below where it was. */
+void layer_moveDown(layer *l);
+
+/* Copy and premultiply alpha for length pixels from src
+   to the specified channel in the given layer. If channel
+   is 0, the pixels will be copied to every other channel. */
+void layer_blit(layer *l, uint8_t channel, pixArray src, int length, bool alpha);
 
 /* Iterate over the list of layers, compositing them with
    alpha blending into the static base layer. The layers

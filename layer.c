@@ -121,7 +121,7 @@ void layer_moveToBack(layer *l)
     pthread_mutex_unlock(&layers_mutex);
 }
 
-void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length)
+void layer_blit(layer *l, uint8_t channel, pixArray src, int length, bool alpha)
 {
     if (length == 0)
     {
@@ -129,7 +129,7 @@ void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length)
     }
     if (channel == 0)
     {
-        layer_blit(l, 1, src, length);
+        layer_blit(l, 1, src, length, alpha);
         for (int i = 1; i < 255; i++)
         {
             if (length > l->channels[i].length)
@@ -166,12 +166,25 @@ void layer_blit(layer *l, uint8_t channel, rgbaPixel *src, int length)
             l->channels[channel].pixels = realloc(l->channels[channel].pixels, length * sizeof(rgbaPixel));
             l->channels[channel].length = length;
         }
-        for (int i = 0; i < length; i++)
+        if (alpha)
         {
-            l->channels[channel].pixels[i].r = ((src[i].r * src[i].a + 1) * 257) >> 16;
-            l->channels[channel].pixels[i].g = ((src[i].g * src[i].a + 1) * 257) >> 16;
-            l->channels[channel].pixels[i].b = ((src[i].b * src[i].a + 1) * 257) >> 16;
-            l->channels[channel].pixels[i].a = src[i].a;
+            for (int i = 0; i < length; i++)
+            {
+                l->channels[channel].pixels[i].r = ((src.rgba[i].r * src.rgba[i].a + 1) * 257) >> 16;
+                l->channels[channel].pixels[i].g = ((src.rgba[i].g * src.rgba[i].a + 1) * 257) >> 16;
+                l->channels[channel].pixels[i].b = ((src.rgba[i].b * src.rgba[i].a + 1) * 257) >> 16;
+                l->channels[channel].pixels[i].a = src.rgba[i].a;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < length; i++)
+            {
+                l->channels[channel].pixels[i].r = src.rgb[i].r;
+                l->channels[channel].pixels[i].g = src.rgb[i].g;
+                l->channels[channel].pixels[i].b = src.rgb[i].b;
+                l->channels[channel].pixels[i].a = 255;
+            }
         }
         pthread_mutex_lock(&dirty_mutex);
         dirty[channel >> 5] |= (1 << (channel & 31));
