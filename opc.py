@@ -39,6 +39,7 @@ import sys
 
 SET_PIXEL_COLOURS = 0  # "Set pixel colours" command (see openpixelcontrol.org)
 SET_PIXEL_COLOURS_ARGB = 2 # "Set pixel colours with alpha" command
+SYSTEM_EXCLUSIVE = 255 # "System exclusive" command
 
 class Client(object):
     def __init__(self, server_ip_port, long_connection=True, verbose=False):
@@ -183,6 +184,47 @@ class Client(object):
 
         if not self._long_connection:
             self._debug('put_pixels: disconnecting')
+            self.disconnect()
+
+        return True
+
+    def sysex(self, data, sysid, channel=0):
+        """Send a System Exclusive command to the OPC server on the given channel.
+
+        data: A bytes object with the data to send to the OPC server.
+
+        sysid: The system ID the message is meant for.
+
+        channel: Which strand of lights to send the pixel colors to.
+            Must be an int in the range 0-255 inclusive.
+            0 is a special value which means "all channels".
+
+        Will establish a connection to the server as needed.
+
+        On successful transmission, return True.
+        On failure (bad connection), return False.
+
+        """
+        self._debug('sysex: connecting')
+        is_connected = self._ensure_connected()
+        if not is_connected:
+            self._debug('sysex: not connected.  ignoring this message.')
+            return False
+
+        # build OPC message
+        command = SYSTEM_EXCLUSIVE
+        message = struct.pack('>BBHH', channel, command, len(data) + 2, sysid) + data
+
+        self._debug('sysex: sending pixels to server')
+        try:
+            self._socket.send(message)
+        except socket.error:
+            self._debug('sysex: connection lost.  could not send pixels.')
+            self._socket = None
+            return False
+
+        if not self._long_connection:
+            self._debug('sysex: disconnecting')
             self.disconnect()
 
         return True

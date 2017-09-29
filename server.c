@@ -124,7 +124,21 @@ void *opc_receive(layer *l)
                 case OPC_SYSTEM_EXCLUSIVE:
                     if (((payload[0] << 8) | payload[1]) == OPC_SYSTEM_IDENTIFIER)
                     {
-                        // reorder layers or whatever
+                        switch (payload[2])
+                        {
+                        case COMMAND_MOVETOFRONT:
+                            layer_moveToFront(l);
+                            break;
+                        case COMMAND_MOVETOBACK:
+                            layer_moveToBack(l);
+                            break;
+                        case COMMAND_MOVEUP:
+                            layer_moveUp(l);
+                            break;
+                        case COMMAND_MOVEDOWN:
+                            layer_moveDown(l);
+                            break;
+                        }
                         break;
                     }
                 default:

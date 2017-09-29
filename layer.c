@@ -121,6 +121,34 @@ void layer_moveToBack(layer *l)
     pthread_mutex_unlock(&layers_mutex);
 }
 
+void layer_moveUp(layer *l)
+{
+    pthread_mutex_lock(&layers_mutex);
+    if (tail != l)
+    {
+        l->prev = l->prev->prev;
+        l->next = l->prev;
+        l->next->prev = l;
+        l->prev->next = l;
+    }
+    // move towards tail
+    pthread_mutex_unlock(&layers_mutex);
+}
+
+void layer_moveDown(layer *l)
+{
+    pthread_mutex_lock(&layers_mutex);
+    if (head != l)
+    {
+        l->next = l->next->next;
+        l->prev = l->next;
+        l->prev->next = l;
+        l->next->prev = l;
+    }
+    // move towards head
+    pthread_mutex_unlock(&layers_mutex);
+}
+
 void layer_blit(layer *l, uint8_t channel, pixArray src, int length, bool alpha)
 {
     if (length == 0)

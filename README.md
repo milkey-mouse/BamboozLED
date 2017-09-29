@@ -35,7 +35,7 @@ If your system uses `systemd`, `make install` automatically added a `systemd` un
 
 # Layers
 
-The first (bottommost) layer is the background. The initial layer order is determined by connection order: each client to connect to the server gets a new layer on top of all the others. BamboozLED will [composite](https://en.wikipedia.org/wiki/Alpha_compositing) layers on top of each other.
+The first (bottommost) layer is the background. The initial layer order is determined by connection order: each client to connect to the server gets a new layer on top of all the others. Layers can be reordered, however: see [Moving layers](#moving-layers). BamboozLED will [composite](https://en.wikipedia.org/wiki/Alpha_compositing) layers on top of each other.
 
 # OPC API
 
@@ -46,5 +46,22 @@ In order to preserve compatibility with existing programs that expect to set pix
 | channel | command | length (n) |          | data                             |
 |---------|---------|------------|----------|----------------------------------|
 | 0-255   | 2       | high byte  | low byte | `n` bytes of message data (RGBA) |
+
+### Moving layers
+
+`SysEx` (command 255) is also captured and used for moving layers up and down:
+
+| channel | command | length |   | system ID | BamboozLED command |
+|---------|---------|--------|---|-----------|--------------------|
+| any     | 255     | 0      | 3 | `0xB0B`   | 0-3                |
+
+The channel number doesn't matter because a layer encompasses all channels sent by that client. The BamboozLED command can be any of the following:
+
+| BamboozLED command | Action               |
+| -------------------|----------------------|
+| 0                  | move layer to front  |
+| 1                  | move layer to back   |
+| 2                  | move layer up by 1   |
+| 3                  | move layer down by 1 |
 
 Any other OPC commands will be passed through as-is to the destination OPC server.

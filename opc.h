@@ -13,6 +13,12 @@
 /* OPC command to set (virtual) pixels to RGBA values. */
 #define OPC_SET_ARGB 2
 
+/* BamboozLED SysEx commands */
+#define COMMAND_MOVETOFRONT 0
+#define COMMAND_MOVETOBACK 1
+#define COMMAND_MOVEUP 2
+#define COMMAND_MOVEDOWN 3
+
 /* SysEx OPC command; implementation varies by device. BamboozLED uses this for
    moving layers up and down. */
 #define OPC_SYSTEM_EXCLUSIVE 255
